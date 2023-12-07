@@ -5,15 +5,15 @@ define api and data specific conversions of options and futures tickers
 import re
 import numpy as np
 import pandas as pd
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 from enum import Enum
 
 TIME_FMT = '%Y%m%d%H%M%S'
 EXPIRY_DATE_FORMAT = '%d%b%Y'
-SECONDS_PER_YEAR = 365*24*60*60  # days, hours, minute, seconds
+SECONDS_PER_DAY = 24*60*60  # hours, minute, seconds
 
 
-class NearestStrikeSelection(Enum):
+class NearestStrikeOnGrid(Enum):
     # nearest strike from the strikes grid, for put ratios must be strictly below or above
     NEAREST = 0
     MAX_OI = 1
@@ -21,9 +21,10 @@ class NearestStrikeSelection(Enum):
     BELOW = 3
 
 
-class DeltaType(Enum):
-    MARKED = 1
-    NORMAL = 2
+class StrikeSelection(Enum):
+    # strike selection for a strategy
+    ATM = 1
+    DELTA = 2
 
 
 class OptionTickerConfig(Enum):
@@ -36,11 +37,45 @@ class OptionTickerConfig(Enum):
     YAHOO = 3  # SPY230117C00353000
 
 
-def get_ttm_from_dates(mat_date: pd.Timestamp, value_time: pd.Timestamp, is_floor_at_zero: bool = True) -> float:
-    ttm = (mat_date - value_time).total_seconds() / SECONDS_PER_YEAR
-    if is_floor_at_zero:
-        ttm = np.maximum(ttm, 0.0)
+def compute_time_to_maturity(maturity_time: pd.Timestamp,
+                             value_time: pd.Timestamp,
+                             is_floor_at_zero: bool = True,
+                             af: float = 365
+                             ) -> float:
+    """
+    return annualised difference between mat_date and value_time
+    """
+    ttm = (maturity_time - value_time).total_seconds() / (af*SECONDS_PER_DAY)
+    if is_floor_at_zero and ttm < 0.0:
+        ttm = 0.0
     return ttm
+
+
+def compute_days_to_maturity(maturity_time: pd.Timestamp,
+                             value_time: pd.Timestamp,
+                             is_floor_at_zero: bool = True,
+                             af: float = 365
+                             ) -> float:
+    """
+    return annualised difference between mat_date and value_time
+    """
+    ttm = (maturity_time - value_time).total_seconds() / (af*SECONDS_PER_DAY)
+    if is_floor_at_zero and ttm < 0.0:
+        ttm = 0.0
+    return ttm
+
+
+def mat_to_timestamp(mat: str,
+                     date_format: Optional[str] = None,  # deribit = "%d%b%y"
+                     hour_offset: Optional[int] = 8
+                     ) -> pd.Timestamp:
+    """
+    from maturity string get timestamp
+    """
+    mat = pd.Timestamp(pd.to_datetime(mat, format=date_format), tz='UTC')
+    if hour_offset is not None:
+        mat = mat + pd.to_timedelta(hour_offset, unit='h')
+    return mat
 
 
 def split_option_contract_ticker(contract: str = 'deribit-ETH-28OCT22-2000-C-option',
@@ -69,8 +104,8 @@ def split_option_contract_ticker(contract: str = 'deribit-ETH-28OCT22-2000-C-opt
 
 
 def get_option_data_from_contract(value_time: pd.Timestamp,
-                                  contract: str = 'deribit-ETH-28OCT22-2000-C-option',
-                                  option_ticker_config: OptionTickerConfig = OptionTickerConfig.CMS
+                                  contract: str = 'ETH-28OCT22-2000-C-option',
+                                  option_ticker_config: OptionTickerConfig = OptionTickerConfig.DERIBIT
                                   ) -> Tuple[str, pd.Timestamp, float, str, float]:
     """
     split ticker as follows
@@ -79,8 +114,26 @@ def get_option_data_from_contract(value_time: pd.Timestamp,
     mat_str, strike, option_type = split_option_contract_ticker(contract=contract,
                                                                 option_ticker_config=option_ticker_config)
     mat_date = mat_to_timestamp(mat_str)
-    ttm = get_ttm_from_dates(mat_date=mat_date, value_time=value_time)
+    ttm = compute_time_to_maturity(maturity_time=mat_date, value_time=value_time)
     return mat_str, mat_date, strike, option_type, ttm
+
+
+def get_option_data_from_contracts(value_times: List[pd.Timestamp],
+                                   contracts: List[str],
+                                   option_ticker_config: OptionTickerConfig = OptionTickerConfig.DERIBIT
+                                   ) -> pd.DataFrame:
+    """
+    split ticker as follows
+    deribit-SOL-28OCT22-10-C-option
+    """
+    rows = {}
+    for idx, (value_time, contract) in enumerate(zip(value_times, contracts)):
+        mat_str, mat_date, strike, option_type, ttm = get_option_data_from_contract(value_time=value_time,
+                                                                                    contract=contract,
+                                                                                    option_ticker_config=option_ticker_config)
+        rows[idx] = dict(mat_str=mat_str, mat_date=mat_date, strike=strike, option_type=option_type, ttm=ttm)
+    df = pd.DataFrame.from_dict(rows, orient='index')
+    return df
 
 
 class FutureTickerConfig(Tuple, Enum):
@@ -164,7 +217,7 @@ def get_ttm_from_future_ticker(value_time: pd.Timestamp,
                                ) -> float:
     mat_str, mat_date = split_future_contract_ticker(contract=contract, future_ticker_config=future_ticker_config)
     if mat_date is not None:
-        ttm = get_ttm_from_dates(mat_date=mat_date, value_time=value_time, is_floor_at_zero=is_floor_at_zero)
+        ttm = compute_time_to_maturity(maturity_time=mat_date, value_time=value_time, is_floor_at_zero=is_floor_at_zero)
     else:
         if is_floor_at_zero:  # so no confusion
             ttm = 0.0
@@ -173,23 +226,13 @@ def get_ttm_from_future_ticker(value_time: pd.Timestamp,
     return ttm
 
 
-def mat_to_timestamp(mat: str,
-                     date_format: str = "%d%b%y"  # deribit is default
-                     ) -> pd.Timestamp:
-    """
-    can be generalized to exchange
-    """
-    return pd.Timestamp(pd.to_datetime(mat, format=date_format), tz='UTC') + pd.to_timedelta(8.00, unit='h')
-
-
-
-def get_file_name(ticker: str, freq: Optional[str], hours: Optional[int]) -> str:
+def get_file_name(ticker: str, freq: Optional[str], hour_offset: Optional[int]) -> str:
     if freq is not None:
         if freq == 'H':
             file_name = f"{ticker}_freq_{freq}"
         else:
-            if hours is not None:
-                file_name = f"{ticker}_freq_{freq}_hour_{hours}"
+            if hour_offset is not None:
+                file_name = f"{ticker}_freq_{freq}_hour_{hour_offset}"
             else:
                 file_name = f"{ticker}_freq_{freq}"
     else:
