@@ -1,7 +1,7 @@
 
 from option_chain_analytics.data.__init__ import *
 
-from option_chain_analytics.public_apis.__init__ import *
+from option_chain_analytics.data.apis import *
 
 from option_chain_analytics.utils.__init__ import *
 

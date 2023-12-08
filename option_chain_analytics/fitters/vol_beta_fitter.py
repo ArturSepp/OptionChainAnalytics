@@ -338,7 +338,7 @@ def run_unit_test(unit_test: UnitTests):
     # to get options data
     from option_chain_analytics.data.chain_ts import OptionsDataDFs
     from option_chain_analytics.data.chain_loader_from_ts import create_chain_from_from_options_dfs
-    from option_chain_analytics.public_apis.deribit import load_deribit_contract_ts_data
+    from option_chain_analytics import load_deribit_contract_ts_data
 
     if unit_test == UnitTests.PDF:
         log_strikes = np.linspace(-5, 5, 1000)

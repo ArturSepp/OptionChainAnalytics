@@ -4,7 +4,7 @@ fetch deribit data
 import qis
 import requests
 import pandas as pd
-from typing import List, Literal, Union, Dict, Any
+from typing import List, Literal
 from enum import Enum
 from tqdm import tqdm
 
@@ -204,16 +204,6 @@ def update_deribit_options_data(tickers: List[str] = ("ETH", "BTC"), is_print: b
     return current_time
 
 
-def load_deribit_contract_ts_data(ticker: Union[str, Literal['BTC', 'ETH']] = 'BTC',
-                                  local_path: str = DERIBIT_LOCAL_PATH
-                                  ) -> Dict[str, Any]:
-
-    file_path = get_deribit_appended_file_path(ticker=ticker, local_path=local_path)
-    chain_ts = qis.load_df_from_feather(local_path=file_path, index_col=None)
-    spot_data = qis.load_df_from_feather(file_name=f"{ticker}_perp_data", local_path=f"{lp.get_resource_path()}\\tardis\\")
-    return dict(chain_ts=chain_ts, spot_data=spot_data, ticker=ticker)
-
-
 class UnitTests(Enum):
     FILE_PATH = 1
     UPDATE_OPTIONS_DATA = 2
@@ -235,8 +225,9 @@ def run_unit_test(unit_test: UnitTests):
     elif unit_test == UnitTests.LOAD_DERIBIT_OPTIONS_DF:
         from option_chain_analytics.data.chain_ts import OptionsDataDFs
         from option_chain_analytics.data.chain_loader_from_ts import create_chain_from_from_options_dfs
+        from option_chain_analytics.ts_loaders import load_local_deribit_contract_ts_data
 
-        options_data_dfs = OptionsDataDFs(**load_deribit_contract_ts_data(ticker='ETH'))
+        options_data_dfs = OptionsDataDFs(**load_local_deribit_contract_ts_data(ticker='ETH'))
         options_data_dfs.print()
         print(options_data_dfs.chain_ts.columns)
         time_index = options_data_dfs.get_timeindex()

@@ -87,7 +87,7 @@ def run_unit_test(unit_test: UnitTests):
     from option_chain_analytics import local_path as local_path
 
     if unit_test == UnitTests.DERIBIT_FIT:
-        from option_chain_analytics.public_apis.deribit import load_deribit_contract_ts_data
+        from option_chain_analytics import load_deribit_contract_ts_data
         options_data_dfs = OptionsDataDFs(**load_deribit_contract_ts_data(ticker='ETH'))
         time_index = options_data_dfs.get_timeindex()
         print(f"time_index={time_index}")
@@ -97,7 +97,7 @@ def run_unit_test(unit_test: UnitTests):
         print(fit_params)
 
     elif unit_test == UnitTests.YAHOO_FIT:
-        from option_chain_analytics.public_apis.yahoo import load_contract_ts_data
+        from option_chain_analytics.data.apis.yahoo import load_contract_ts_data
 
         ticker = 'USO'
         value_time = pd.Timestamp('2023-11-24 17:21:17.248659+00:00')
