@@ -24,3 +24,4 @@ from option_chain_analytics.data.chain_ts import (ChainTs,
                                                   FuturesChainTs,
                                                   OptionsDataDFs)
 
+from option_chain_analytics.data.apis.deribit import update_deribit_options_data

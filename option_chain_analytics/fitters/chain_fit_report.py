@@ -87,8 +87,8 @@ def run_unit_test(unit_test: UnitTests):
     from option_chain_analytics import local_path as local_path
 
     if unit_test == UnitTests.DERIBIT_FIT:
-        from option_chain_analytics import load_deribit_contract_ts_data
-        options_data_dfs = OptionsDataDFs(**load_deribit_contract_ts_data(ticker='ETH'))
+        from option_chain_analytics.ts_loaders import ts_data_loader_wrapper
+        options_data_dfs = OptionsDataDFs(**ts_data_loader_wrapper(ticker='ETH'))
         time_index = options_data_dfs.get_timeindex()
         print(f"time_index={time_index}")
         value_time = pd.Timestamp('2023-11-03 17:30:34.270745+00:00')

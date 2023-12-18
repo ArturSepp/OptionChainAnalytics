@@ -73,9 +73,10 @@ def get_clean_slice(df: pd.DataFrame) -> pd.DataFrame:
     cond = (df[SliceColumn.MARK_PRICE] > 0.0) \
            & (df[SliceColumn.BID_PRICE] > 0.0) & (df[SliceColumn.ASK_PRICE] > 0.0)  \
            & (df[SliceColumn.UNDERLYING_PRICE] > 0.0)
-    cond = (df[SliceColumn.MARK_PRICE] > 0.0)
+    # cond = (df[SliceColumn.MARK_PRICE] > 0.0)
     vol_cond = (df[SliceColumn.BID_IV].isna() == False) & (df[SliceColumn.ASK_IV].isna() == False)\
                & (df[SliceColumn.MARK_IV].isna() == False)
+    cond = np.logical_and(cond, vol_cond)
     clean_df = df[cond]
     return clean_df
 

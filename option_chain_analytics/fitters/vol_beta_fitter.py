@@ -338,7 +338,7 @@ def run_unit_test(unit_test: UnitTests):
     # to get options data
     from option_chain_analytics.data.chain_ts import OptionsDataDFs
     from option_chain_analytics.data.chain_loader_from_ts import create_chain_from_from_options_dfs
-    from option_chain_analytics import load_deribit_contract_ts_data
+    from option_chain_analytics.ts_loaders import ts_data_loader_wrapper
 
     if unit_test == UnitTests.PDF:
         log_strikes = np.linspace(-5, 5, 1000)
@@ -416,8 +416,8 @@ def run_unit_test(unit_test: UnitTests):
         sns.lineplot(data=imp_vols)
 
     elif unit_test == UnitTests.FIT:
-
-        options_data_dfs = OptionsDataDFs(**load_deribit_contract_ts_data(ticker='ETH'))
+        from option_chain_analytics.ts_loaders import ts_data_loader_wrapper
+        options_data_dfs = OptionsDataDFs(**ts_data_loader_wrapper(ticker='ETH'))
         time_index = options_data_dfs.get_timeindex()
         print(f"time_index={time_index}")
         value_time = pd.Timestamp('2023-11-01 15:31:57.487172+00:00')
@@ -433,7 +433,7 @@ def run_unit_test(unit_test: UnitTests):
 
     elif unit_test == UnitTests.GENERATE_PRICES:
 
-        options_data_dfs = OptionsDataDFs(**load_deribit_contract_ts_data(ticker='ETH'))
+        options_data_dfs = OptionsDataDFs(**ts_data_loader_wrapper(ticker='ETH'))
         time_index = options_data_dfs.get_timeindex()
         print(f"time_index={time_index}")
         value_time = pd.Timestamp('2023-11-01 15:31:57.487172+00:00')

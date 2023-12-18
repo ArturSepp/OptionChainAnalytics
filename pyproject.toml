@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "option_chain_analytics"
-version = "1.0.7"
+version = "1.0.9"
 description = "Implementation of visualisation and reporting analytics for Quantitative Investment Strategies"
 license = "LICENSE.txt"
 authors = ["Artur Sepp <artursepp@gmail.com>"]
