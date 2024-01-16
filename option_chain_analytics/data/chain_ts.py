@@ -70,6 +70,9 @@ class ChainTs:
             df = df.set_index(SliceColumn.CONTRACT.value, drop=False)
             df.index.name = 'contract'
 
+            # remove dublicates per timestamp
+            df = df.loc[~df.index.duplicated(keep='first')]
+
             if contracts is not None:
                 df = df.iloc[np.in1d(df.index, contracts, assume_unique=False), :]
         else:
@@ -105,7 +108,7 @@ class ChainTs:
         """
         funding_rate_1h = self.spot_data['funding_rate'].rename(self.ticker)
         if freq is not None:
-            funding_rate_8h = funding_rate_1h.resample('8h').last()
+            funding_rate_8h = funding_rate_1h.resample('8h').mean()
             if freq == 'H':
                 funding_rate = funding_rate_8h
                 if index is not None:

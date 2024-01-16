@@ -51,7 +51,9 @@ def load_local_tardis_contract_ts_data(ticker: str = 'BTC',
     chain_ts = qis.load_df_from_feather(file_name=f"{ticker}_freq_H",
                                         index_col=None,
                                         local_path=local_path)
-    spot_data = qis.load_df_from_feather(file_name=f"{ticker}_perp_data", local_path=local_path)
+    spot_data = qis.load_df_from_feather(file_name=f"{ticker}_perp_freq_H",
+                                         index_col='timestamp',
+                                         local_path=local_path)
     return dict(chain_ts=chain_ts, spot_data=spot_data, ticker=ticker)
 
 

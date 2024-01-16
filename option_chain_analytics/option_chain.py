@@ -106,8 +106,11 @@ class ExpirySlice:
         # for easy of searching contracts by strike, reindex call and puts using strikes
         self.calls = self.options_df.loc[self.options_df[SliceColumn.OPTION_TYPE.value] == 'C', :].sort_values(
             by=SliceColumn.STRIKE).set_index(SliceColumn.STRIKE, drop=False)
+        self.calls = self.calls.loc[~self.calls.index.duplicated(keep='last')]  # exclude dublicates
+
         self.puts = self.options_df.loc[self.options_df[SliceColumn.OPTION_TYPE.value] == 'P', :].sort_values(
             by=SliceColumn.STRIKE).set_index(SliceColumn.STRIKE, drop=False)
+        self.puts = self.puts.loc[~self.puts.index.duplicated(keep='last')]  # exclude dublicates
 
     def print(self) -> None:
         print(f"expiry_id={self.expiry_id},\n"
@@ -497,7 +500,14 @@ class SlicesChain:
         return self.expiry_slices[slice_id].get_call_delta_option_id(delta=delta, nearest_strike_on_grid=nearest_strike_on_grid)
 
     def get_contract_data(self, contract: str) -> pd.Series:
+        if not isinstance(contract, str):
+            raise ValueError(f"contract")
         contract_data = self.options_df.loc[contract, :]
+
+        # remove dublicates timestamps
+        if isinstance(contract_data, pd.DataFrame):
+            contract_data = contract_data.iloc[-1, :]
+
         return contract_data
 
     def get_contract_execution_price(self,
@@ -886,7 +896,7 @@ def get_contract_execution_price(contract_data: pd.DataFrame,
                           index=contract_data.index)
 
     if is_trade_at_bid_ask:
-        execution_price_coin = pd.Series(np.where(np.greater(num_contracts, 0.0),
+        execution_price_coin = pd.Series(np.where(np.greater(num_contracts.to_numpy(), 0.0),
                                                   ask_price,
                                                   bid_price),
                                          index=contract_data.index)
@@ -894,7 +904,7 @@ def get_contract_execution_price(contract_data: pd.DataFrame,
         execution_price_coin = mid_price
     if traded_premium_charge is not None:
         # for buys increase, for sell decrease
-        execution_price_coin = pd.Series(np.where(np.greater(num_contracts, 0.0),
+        execution_price_coin = pd.Series(np.where(np.greater(num_contracts.to_numpy(), 0.0),
                                                   execution_price_coin*(1.0+traded_premium_charge),  #  buy at higher price
                                                   execution_price_coin*(1.0-traded_premium_charge)),  # sell at lower price
                                          index=contract_data.index)
