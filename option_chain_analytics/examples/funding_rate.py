@@ -17,11 +17,12 @@ pd.set_option('display.width', 1000)
 
 class UnitTests(Enum):
     PLOT_FUNDING_RATE = 1
+    PLOT_MARK_VS_INDEX = 2
 
 
 def run_unit_test(unit_test: UnitTests):
 
-    ticker = 'BTC'  # BTC, ETH
+    ticker = 'ETH'  # BTC, ETH
 
     options_data_dfs = OptionsDataDFs(**ts_data_loader_wrapper(ticker=ticker, data_source=DataSource.TARDIS_LOCAL))
 
@@ -48,17 +49,28 @@ def run_unit_test(unit_test: UnitTests):
 
         with sns.axes_style("darkgrid"):
             fig, axs = plt.subplots(3, 1, figsize=(10, 7))
-            kwargs = dict(x_date_freq='M', legend_stats=qis.LegendStats.FIRST_AVG_LAST, framealpha=0.9)
+            kwargs = dict(x_date_freq='ME', legend_stats=qis.LegendStats.FIRST_AVG_LAST, framealpha=0.9)
             qis.plot_time_series(df=funding_rate_1h, title='funding_rate', ax=axs[0], **kwargs)
             qis.plot_time_series(df=funding_rate_annual, title='funding_rate_annual', ax=axs[1], **kwargs)
             qis.plot_time_series(df=cumrates, title='cum_funding_rate', ax=axs[2], **kwargs)
+
+    elif unit_test == UnitTests.PLOT_MARK_VS_INDEX:
+        ts1 = options_data_dfs.spot_data[['index_price', 'mark_price']]
+        index_mark = ts1.iloc[:, 0].subtract(ts1.iloc[:, 1]).rename('index-mark')
+        funding_rate = options_data_dfs.spot_data[['funding_rate']]
+        df = pd.concat([index_mark, funding_rate], axis=1)
+        npdf = df.iloc[:, 0].to_numpy()
+        df['hue'] = np.where(npdf > 0.025/100.0, '>0', np.where(npdf < -0.025/100.0, '<0', '0'))
+
+        qis.plot_time_series(df=index_mark)
+        qis.plot_scatter(df=df.iloc[:-365, :], hue='hue', order=1)
 
     plt.show()
 
 
 if __name__ == '__main__':
 
-    unit_test = UnitTests.PLOT_FUNDING_RATE
+    unit_test = UnitTests.PLOT_MARK_VS_INDEX
 
     is_run_all_tests = False
     if is_run_all_tests:

@@ -21,6 +21,7 @@ class OptionType(str, Enum):
 
 """
 first implement scalar price, delta, vega, gamma along with vectorised versions
+nb: numba loops are more efficient than vectorised implementations 
 """
 
 
@@ -30,6 +31,13 @@ def is_intrinsic(ttm: float, vol: float) -> bool:
         return True
     else:
         return False
+
+
+"""
+**************************
+prices
+****************************
+"""
 
 
 @njit
@@ -68,117 +76,6 @@ compute_bsm_vanilla_price_vector = np.vectorize(compute_bsm_vanilla_price, doc='
 
 
 @njit
-def compute_bsm_vanilla_delta(ttm: float,
-                              forward: float,
-                              strike: float,
-                              vol: float,
-                              optiontype: str,
-                              discfactor: float = 1.0
-                              ) -> float:
-    """
-    bsm deltas for strikes and vols
-    """
-    if is_intrinsic(ttm=ttm, vol=vol):
-        if optiontype == 'C' or optiontype == 'IC':
-            bsm_deltas = 1.0 if forward >= strike else 0.0
-        elif optiontype == 'P' or optiontype == 'IP':
-            bsm_deltas = - 1.0 if forward <= strike else 0.0
-        else:
-            raise NotImplementedError(f"optiontype")
-    else:
-        s_ttm = vol * np.sqrt(ttm)
-        d1 = np.log(forward / strike) / s_ttm + 0.5 * s_ttm
-        if optiontype == 'C':
-            d1_sign = 1.0
-        elif optiontype == 'P':
-            d1_sign = - 1.0
-        else:
-            d1_sign = 0.0
-        bsm_deltas = discfactor * d1_sign * ncdf(d1_sign * d1)
-    return bsm_deltas
-
-
-compute_bsm_vanilla_delta_vector = np.vectorize(compute_bsm_vanilla_delta, doc='Vectorized `compute_bsm_vanilla_delta`')
-
-
-@njit(cache=False, fastmath=False)
-def compute_bsm_vanilla_vega(ttm: float,
-                             forward: float,
-                             strike: float,
-                             vol: float,
-                             ) -> float:
-    """
-    vectorised bsm vegas for array of aligned strikes, vols, and optiontypes
-    """
-    if is_intrinsic(ttm=ttm, vol=vol):
-        vega = 0.0
-    else:
-        s_t = vol * np.sqrt(ttm)
-        d1 = np.log(forward / strike) / s_t + 0.5 * s_t
-        vega = forward * npdf(d1) * np.sqrt(ttm)
-    return vega
-
-
-compute_bsm_vanilla_vega_vector = np.vectorize(compute_bsm_vanilla_vega, doc='Vectorized `compute_bsm_vanilla_vega`')
-
-
-@njit
-def compute_bsm_vanilla_gamma(ttm: float,
-                              forward: float,
-                              strike: float,
-                              vol: float
-                              ) -> float:
-    """
-    vectorised bsm vegas for array of aligned strikes, vols, and optiontypes
-    """
-    if is_intrinsic(ttm=ttm, vol=vol):
-        gamma = 0.0
-    else:
-        s_t = vol * np.sqrt(ttm)
-        d1 = np.log(forward / strike) / s_t + 0.5 * s_t
-        gamma = npdf(d1) / (forward*s_t)
-    return gamma
-
-
-compute_bsm_vanilla_gamma_vector = np.vectorize(compute_bsm_vanilla_gamma, doc='Vectorized `compute_bsm_vanilla_gamma`')
-
-
-@njit
-def compute_bsm_vanilla_theta(ttm: float,
-                              forward: float,
-                              strike: float,
-                              vol: float,
-                              optiontype: str,
-                              discfactor: float = 1.0,
-                              discount_rate: float = 0.0
-                              ) -> float:
-    """
-    vectorised bsm vegas for array of aligned strikes, vols, and optiontypes
-    """
-    if is_intrinsic(ttm=ttm, vol=vol):
-        theta = 0.0
-    else:
-        s_t = vol * np.sqrt(ttm)
-        d1 = np.log(forward / strike) / s_t + 0.5 * s_t
-        d2 = d1 - s_t
-        if optiontype == 'C' or optiontype == 'IC':
-            theta = -forward * npdf(d1)*vol/(0.5*np.sqrt(ttm)) - discount_rate*discfactor*strike*ncdf(d2)
-        elif optiontype == 'P' or optiontype == 'IP':
-            theta = -forward * npdf(d1)*vol/(0.5*np.sqrt(ttm)) + discount_rate*discfactor*strike*ncdf(-d2)
-        else:
-            raise NotImplementedError(f"optiontype")
-    return theta
-
-
-compute_bsm_vanilla_theta_vector = np.vectorize(compute_bsm_vanilla_theta, doc='Vectorized `compute_bsm_vanilla_theta`')
-
-
-"""
-numba loops are more efficient than vectorised implementations 
-"""
-
-
-@njit
 def compute_bsm_vanilla_slice_prices(ttm: float,
                                      forward: float,
                                      strikes: np.ndarray,
@@ -212,7 +109,7 @@ def compute_bsm_forward_grid_prices(ttm: float,
                                     discfactor: float = 1.0
                                     ) -> np.ndarray:
     """
-    vectorised bsm prices for array of aligned forwards, vols, and optiontypes
+    vectorised bsm prices for array of aligned forwards
     """
     def f(forward: float) -> float:
         return compute_bsm_vanilla_price(forward=forward,
@@ -226,6 +123,47 @@ def compute_bsm_forward_grid_prices(ttm: float,
     for idx, forward in enumerate(forwards):
         bsm_prices[idx] = f(forward)
     return bsm_prices
+
+
+"""
+**************************
+deltas
+**************************
+"""
+
+
+@njit
+def compute_bsm_vanilla_delta(ttm: float,
+                              forward: float,
+                              strike: float,
+                              vol: float,
+                              optiontype: str,
+                              discfactor: float = 1.0
+                              ) -> float:
+    """
+    bsm deltas for strikes and vols
+    """
+    if is_intrinsic(ttm=ttm, vol=vol):
+        if optiontype == 'C' or optiontype == 'IC':
+            bsm_deltas = 1.0 if forward >= strike else 0.0
+        elif optiontype == 'P' or optiontype == 'IP':
+            bsm_deltas = - 1.0 if forward <= strike else 0.0
+        else:
+            raise NotImplementedError(f"optiontype")
+    else:
+        s_ttm = vol * np.sqrt(ttm)
+        d1 = np.log(forward / strike) / s_ttm + 0.5 * s_ttm
+        if optiontype == 'C':
+            d1_sign = 1.0
+        elif optiontype == 'P':
+            d1_sign = - 1.0
+        else:
+            d1_sign = 0.0
+        bsm_deltas = discfactor * d1_sign * ncdf(d1_sign * d1)
+    return bsm_deltas
+
+
+compute_bsm_vanilla_delta_vector = np.vectorize(compute_bsm_vanilla_delta, doc='Vectorized `compute_bsm_vanilla_delta`')
 
 
 @njit
@@ -252,6 +190,22 @@ def compute_bsm_vanilla_slice_deltas(ttm: float,
 
 
 @njit
+def compute_bsm_vanilla_deltas_ttms(ttms: np.ndarray,
+                                    forwards: np.ndarray,
+                                    strikes_ttms: List[np.ndarray],
+                                    vols_ttms: List[np.ndarray],
+                                    optiontypes_ttms: List[np.ndarray],
+                                    ) -> List[np.ndarray]:
+    """
+    vectorised bsm deltas for array of aligned strikes, vols, and optiontypes
+    """
+    deltas_ttms = List()
+    for ttm, forward, vols_ttm, strikes_ttm, optiontypes_ttm in zip(ttms, forwards, vols_ttms, strikes_ttms, optiontypes_ttms):
+        deltas_ttms.append(compute_bsm_vanilla_slice_deltas(ttm=ttm, forward=forward, strikes=strikes_ttm, vols=vols_ttm, optiontypes=optiontypes_ttm))
+    return deltas_ttms
+
+
+@njit
 def compute_bsm_vanilla_grid_deltas(ttm: float,
                                     forwards: np.ndarray,
                                     strike: float,
@@ -260,7 +214,7 @@ def compute_bsm_vanilla_grid_deltas(ttm: float,
                                     discfactor: float = 1.0
                                     ) -> np.ndarray:
     """
-    vectorised bsm deltas for array of aligned forwards, vols, and optiontypes
+    vectorised bsm deltas for array of forwards grid
     """
     def f(forward: float) -> float:
         return compute_bsm_vanilla_delta(forward=forward,
@@ -274,6 +228,142 @@ def compute_bsm_vanilla_grid_deltas(ttm: float,
     for idx, forward in enumerate(forwards):
         bsm_deltas[idx] = f(forward)
     return bsm_deltas
+
+
+def compute_bsm_strike_from_delta(ttm: float,
+                                  forward: float,
+                                  delta: float,
+                                  vol: float
+                                  ) -> Union[float, np.ndarray]:
+    """
+    bsm deltas for strikes and vols
+    """
+    inv_delta = norm.ppf(delta) if delta > 0.0 else -norm.ppf(-delta)
+    s_t = vol * np.sqrt(ttm)
+    strike = forward*np.exp(-s_t*(inv_delta - 0.5 * s_t))
+    return strike
+
+
+"""
+****************************
+Vega
+****************************
+"""
+@njit
+def compute_bsm_vanilla_vega(ttm: float,
+                             forward: float,
+                             strike: float,
+                             vol: float,
+                             ) -> float:
+    """
+    vectorised bsm vegas for array of aligned strikes, vols, and optiontypes
+    """
+    if is_intrinsic(ttm=ttm, vol=vol):
+        vega = 0.0
+    else:
+        s_t = vol * np.sqrt(ttm)
+        d1 = np.log(forward / strike) / s_t + 0.5 * s_t
+        vega = forward * npdf(d1) * np.sqrt(ttm)
+    return vega
+
+
+compute_bsm_vanilla_vega_vector = np.vectorize(compute_bsm_vanilla_vega, doc='Vectorized `compute_bsm_vanilla_vega`')
+
+
+@njit
+def compute_bsm_slice_vegas(ttm: float,
+                            forward: float,
+                            strikes: np.ndarray,
+                            vols: np.ndarray,
+                            optiontypes: np.ndarray = None
+                            ) -> np.ndarray:
+    """
+    vectorised bsm vegas for array of aligned strikes, vols, and optiontypes
+    """
+    sT = vols * np.sqrt(ttm)
+    d1 = np.log(forward / strikes) / sT + 0.5 * sT
+    vegas = forward * npdf(d1) * np.sqrt(ttm)
+    return vegas
+
+
+@njit
+def compute_bsm_vegas_ttms(ttms: np.ndarray,
+                           forwards: np.ndarray,
+                           strikes_ttms: List[np.ndarray],
+                           vols_ttms: List[np.ndarray],
+                           optiontypes_ttms: List[np.ndarray],
+                           ) -> List[np.ndarray]:
+    """
+    vectorised bsm vegas for array of aligned strikes, vols, and optiontypes
+    """
+    vegas_ttms = List()
+    for ttm, forward, vols_ttm, strikes_ttm, optiontypes_ttm in zip(ttms, forwards, vols_ttms, strikes_ttms, optiontypes_ttms):
+        vegas_ttms.append(compute_bsm_slice_vegas(ttm=ttm, forward=forward, strikes=strikes_ttm, vols=vols_ttm, optiontypes=optiontypes_ttm))
+    return vegas_ttms
+
+
+"""
+****************************
+Gamma
+****************************
+"""
+
+@njit
+def compute_bsm_vanilla_gamma(ttm: float,
+                              forward: float,
+                              strike: float,
+                              vol: float
+                              ) -> float:
+    """
+    vectorised bsm vegas for array of aligned strikes, vols, and optiontypes
+    """
+    if is_intrinsic(ttm=ttm, vol=vol):
+        gamma = 0.0
+    else:
+        s_t = vol * np.sqrt(ttm)
+        d1 = np.log(forward / strike) / s_t + 0.5 * s_t
+        gamma = npdf(d1) / (forward*s_t)
+    return gamma
+
+
+compute_bsm_vanilla_gamma_vector = np.vectorize(compute_bsm_vanilla_gamma, doc='Vectorized `compute_bsm_vanilla_gamma`')
+
+
+"""
+****************************
+Theta
+****************************
+"""
+
+
+@njit
+def compute_bsm_vanilla_theta(ttm: float,
+                              forward: float,
+                              strike: float,
+                              vol: float,
+                              optiontype: str,
+                              discfactor: float = 1.0,
+                              discount_rate: float = 0.0
+                              ) -> float:
+    """
+    vectorised bsm vegas for array of aligned strikes, vols, and optiontypes
+    """
+    if is_intrinsic(ttm=ttm, vol=vol):
+        theta = 0.0
+    else:
+        s_t = vol * np.sqrt(ttm)
+        d1 = np.log(forward / strike) / s_t + 0.5 * s_t
+        d2 = d1 - s_t
+        if optiontype == 'C' or optiontype == 'IC':
+            theta = -forward * npdf(d1)*vol/(0.5*np.sqrt(ttm)) - discount_rate*discfactor*strike*ncdf(d2)
+        elif optiontype == 'P' or optiontype == 'IP':
+            theta = -forward * npdf(d1)*vol/(0.5*np.sqrt(ttm)) + discount_rate*discfactor*strike*ncdf(-d2)
+        else:
+            raise NotImplementedError(f"optiontype")
+    return theta
+
+
+compute_bsm_vanilla_theta_vector = np.vectorize(compute_bsm_vanilla_theta, doc='Vectorized `compute_bsm_vanilla_theta`')
 
 
 @njit
@@ -307,6 +397,13 @@ def compute_bsm_vanilla_vegas_ttms(ttms: np.ndarray,
                                                                     strikes_ttms, optiontypes_ttms):
         vegas_ttms.append(compute_bsm_vanilla_slice_vegas(ttm=ttm, forward=forward, strikes=strikes_ttm, vols=vols_ttm, optiontypes=optiontypes_ttm))
     return vegas_ttms
+
+
+"""
+********************************
+implied vols
+*******************************
+"""
 
 
 @njit
@@ -418,19 +515,11 @@ def infer_bsm_ivols_from_model_chain_prices(ttms: np.ndarray,
     return model_vol_ttms
 
 
-def compute_bsm_strike_from_delta(ttm: float,
-                                  forward: float,
-                                  delta: float,
-                                  vol: float
-                                  ) -> Union[float, np.ndarray]:
-    """
-    bsm deltas for strikes and vols
-    """
-    inv_delta = norm.ppf(delta) if delta > 0.0 else -norm.ppf(-delta)
-    s_t = vol * np.sqrt(ttm)
-    strike = forward*np.exp(-s_t*(inv_delta - 0.5 * s_t))
-    return strike
-
+"""
+********************************************
+Digital prices
+********************************************
+"""
 
 @njit
 def compute_bsm_digital_price(forward: float,

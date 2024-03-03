@@ -8,7 +8,7 @@ from __future__ import annotations
 import pandas as pd
 import numpy as np
 from dataclasses import dataclass, field
-from typing import Literal, List, Union, Optional
+from typing import Literal, List, Union, Optional, Tuple
 from enum import Enum
 import qis
 from qis import TimePeriod
@@ -91,8 +91,32 @@ class ChainTs:
             else:
                 raise KeyError(f"in get_spot_price {value_time} not in {value.index}")
         elif index is not None:
-            value = value.reindex(index=index, method='ffill').fillna(method='ffill')
+            value = value.reindex(index=index, method='ffill').ffill()
         return value
+
+    def get_spot_and_perp_price(self,
+                                value_time: pd.Timestamp = None,
+                                index: Union[pd.DatetimeIndex, pd.Index] = None
+                                ) -> Tuple[Union[float, pd.Series], Union[float, pd.Series]]:
+        """
+        specific for cryptocurrency data where both spot and perp prices are used:
+        spot_price is the spot price
+        perp_mark_price is the mark price of the futures
+        """
+        value = self.spot_data[['close', 'mark_price']]
+        if value_time is not None:
+            if value_time in value.index:
+                value = value[value_time]
+            else:
+                raise KeyError(f"in get_spot_price {value_time} not in {value.index}")
+        elif index is not None:
+            value = value.reindex(index=index, method='ffill').ffill()
+
+        spot_price = value['close'].rename(self.ticker)
+        perp_price = value['mark_price'].rename(self.ticker)
+
+        return spot_price, perp_price
+
 
     def get_funding_rate(self,
                          freq: Optional[Literal['H', 'D']] = 'H',

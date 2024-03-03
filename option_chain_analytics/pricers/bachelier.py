@@ -4,7 +4,7 @@ key analytics for Black Scholes Merton pricer and implied volatilities
 
 import numpy as np
 from numba import njit
-from typing import Union, Tuple
+from typing import Union
 from numba.typed import List
 from scipy.stats import norm
 
