@@ -119,7 +119,7 @@ class ChainTs:
 
 
     def get_funding_rate(self,
-                         freq: Optional[Literal['H', 'D']] = 'H',
+                         freq: Optional[Literal['h', 'D']] = 'h',
                          index: Union[pd.DatetimeIndex, pd.Index] = None,
                          is_rescale_to_one_hour: bool = True,
                          time_period: TimePeriod = None
@@ -133,7 +133,7 @@ class ChainTs:
         funding_rate_1h = self.spot_data['funding_rate'].rename(self.ticker)
         if freq is not None:
             funding_rate_8h = funding_rate_1h.resample('8h').mean()
-            if freq == 'H':
+            if freq == 'h':
                 funding_rate = funding_rate_8h
                 if index is not None:
                     funding_rate = funding_rate.reindex(index=index).fillna(0.0)

@@ -45,7 +45,7 @@ def fetch_ohlcv(symbols: List[str],
     Available timeframes are: 1m, 3m, 5m, 10m, 15m, 30m, 1h, 2h, 3h, 6h, 12h, 1d
     symbol = 'ETH-28JAN22' for deribit
     """
-    if freq == 'H':
+    if freq == 'h':
         freq = '1h'
     elif freq == 'D':
         freq = '1d'
@@ -180,7 +180,7 @@ def normalize_volume(exchange: ccxt.exchanges, symbol: str, df: pd.DataFrame) ->
 
 def fetch_funding_rate(symbol: str = 'ETH/USDT:USDT',
                        exchange: str = 'binanceusdm',
-                       freq: Optional[str] = 'H'
+                       freq: Optional[str] = 'h'
                        ) -> pd.Series:
     exchange = get_exchange(exchange)
     funding = exchange.fetch_funding_rate_history(symbol)
@@ -192,7 +192,7 @@ def fetch_funding_rate(symbol: str = 'ETH/USDT:USDT',
     else:
         frate = df['fundingRate'].apply(pd.to_numeric, errors='ignore')
     if freq is not None:
-        frate = frate.resample('H').last()
+        frate = frate.resample('h').last()
     return frate
 
 
@@ -231,8 +231,8 @@ def run_unit_test(unit_test: UnitTests):
                 print(f"{idx+1}: {symbol}")
 
     elif unit_test == UnitTests.FETCH:
-        # dfs = fetch_ohlcv(symbols=['ETH-PERPETUAL', 'ETH-31MAR23', 'ETH-30JUN23'], exchange='deribit', freq='H')
-        # dfs = fetch_ohlcv(symbols=['ETHUSDH23', 'ETHUSDM23'], exchange='bybit', freq='H')
+        # dfs = fetch_ohlcv(symbols=['ETH-PERPETUAL', 'ETH-31MAR23', 'ETH-30JUN23'], exchange='deribit', freq='h')
+        # dfs = fetch_ohlcv(symbols=['ETHUSDH23', 'ETHUSDM23'], exchange='bybit', freq='h')
         # dfs = fetch_ohlcv(symbols=['ETH/USD:USDC', 'ETH/USD:ETH-230331', 'ETH/USD:ETH-230630'], exchange='bybit', freq='1h')
         # dfs = fetch_ohlcv(symbols=['ETH-USDT-SWAP', 'ETH-USDT-230224', 'ETH-USDT-230331'], exchange='okx', freq='1h')
         # dfs = fetch_ohlcv(symbols=['BTC-USDT-230331'], exchange='okx', freq='1h')

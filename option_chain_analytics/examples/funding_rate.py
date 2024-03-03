@@ -28,14 +28,14 @@ def run_unit_test(unit_test: UnitTests):
 
     if unit_test == UnitTests.PLOT_FUNDING_RATE:
 
-        daily_1h = qis.generate_dates_schedule(time_period=options_data_dfs.get_start_end_date(), freq='H')
+        daily_1h = qis.generate_dates_schedule(time_period=options_data_dfs.get_start_end_date(), freq='h')
 
         daily_8h = qis.generate_dates_schedule(time_period=options_data_dfs.get_start_end_date(), freq='D',
                                                hour_offset=8)
 
         # deribit extrapolates funding rate by 8.0
         funding_rate_1h = options_data_dfs.get_funding_rate(freq=None, is_rescale_to_one_hour=True)
-        funding_rate_1 = options_data_dfs.get_funding_rate(freq='H', index=daily_1h)
+        funding_rate_1 = options_data_dfs.get_funding_rate(freq='h', index=daily_1h)
         funding_rate_2 = options_data_dfs.get_funding_rate(freq='D', index=daily_8h)
         print(f"funding_rate_1=\n{funding_rate_1}")
         print(f"funding_rate_2=\n{funding_rate_2}")

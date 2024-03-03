@@ -228,7 +228,7 @@ def get_ttm_from_future_ticker(value_time: pd.Timestamp,
 
 def get_file_name(ticker: str, freq: Optional[str], hour_offset: Optional[int]) -> str:
     if freq is not None:
-        if freq == 'H':
+        if freq == 'h':
             file_name = f"{ticker}_freq_{freq}"
         else:
             if hour_offset is not None:
