@@ -77,7 +77,7 @@ class UnitTests(Enum):
 
 def run_unit_test(unit_test: UnitTests):
 
-    from option_chain_analytics.data.chain_ts import OptionsDataDFs
+    from option_chain_analytics.chain_ts import OptionsDataDFs
 
     pd.set_option('display.max_columns', 500)
 

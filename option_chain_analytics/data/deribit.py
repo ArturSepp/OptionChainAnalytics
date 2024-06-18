@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 # internal
 from option_chain_analytics.option_chain import SliceColumn
-from option_chain_analytics.data.config import TIME_FMT, compute_time_to_maturity
+from option_chain_analytics.config import TIME_FMT, compute_time_to_maturity
 
 # local paths
 from option_chain_analytics import local_path as lp
@@ -153,7 +153,8 @@ def parse_deribit_options_data(df: pd.DataFrame,
     new_options_df = pd.concat([pd.Series(option_df.index, index=option_df.index, name=SliceColumn.CONTRACT.value),
                                 pd.Series(value_time, index=option_df.index, name=SliceColumn.EXCHANGE_TIME.value),
                                 option_df['underlying_index'].rename(SliceColumn.UNDERLYING_INDEX.value),
-                                option_df['underlying_price'].rename(SliceColumn.UNDERLYING_PRICE.value),
+                                option_df['underlying_price'].rename(SliceColumn.FORWARD_PRICE.value),
+                                option_df['underlying_price'].rename(SliceColumn.SPOT_PRICE.value),
                                 option_df['underlying_price'].rename(SliceColumn.USD_MULTIPLIER.value),
                                 option_df['mark_price'].rename(SliceColumn.MARK_PRICE.value),
                                 option_df['best_bid_price'].rename(SliceColumn.BID_PRICE.value),
@@ -223,8 +224,8 @@ def run_unit_test(unit_test: UnitTests):
         print(timestamps)
 
     elif unit_test == UnitTests.LOAD_DERIBIT_OPTIONS_DF:
-        from option_chain_analytics.data.chain_ts import OptionsDataDFs
-        from option_chain_analytics.data.chain_loader_from_ts import create_chain_from_from_options_dfs
+        from option_chain_analytics.chain_ts import OptionsDataDFs
+        from option_chain_analytics.chain_loader_from_ts import create_chain_from_from_options_dfs
         from option_chain_analytics.ts_loaders import load_local_deribit_contract_ts_data
 
         options_data_dfs = OptionsDataDFs(**load_local_deribit_contract_ts_data(ticker='ETH'))

@@ -15,7 +15,6 @@ from qis import TimePeriod
 
 # analytics
 from option_chain_analytics.option_chain import SliceColumn
-from option_chain_analytics.data.config import get_ttm_from_future_ticker, FutureTickerConfig
 
 
 @dataclass
@@ -117,7 +116,6 @@ class ChainTs:
 
         return spot_price, perp_price
 
-
     def get_funding_rate(self,
                          freq: Optional[Literal['h', 'D']] = 'h',
                          index: Union[pd.DatetimeIndex, pd.Index] = None,
@@ -179,11 +177,8 @@ class ChainTs:
 @dataclass
 class FuturesChainTs(ChainTs):
     """
-    implementation of options time series data
+    implementation of futures time series data
     """
-
-    future_ticker_config: FutureTickerConfig = field(default=FutureTickerConfig.CMS, init=True)
-
     class FuturesDataColumns(str, Enum):
         MARK_PRICE = 'mark_price'
         OPEN = 'open'
@@ -195,26 +190,14 @@ class FuturesChainTs(ChainTs):
         OI_VOLUME = 'oi_value_usd'
         OI_CONTRACTS = 'oi_contract_count'
 
-    def get_term_structure(self,
-                           value_time: pd.Timestamp,
-                           data: str = 'mark_price'
-                           ) -> pd.DataFrame:
-
-        contracts_data = self.get_contracts_data(value_time=value_time, data=data).dropna().rename(data).to_frame()
-        ttms = [get_ttm_from_future_ticker(value_time=value_time, contract=x) for x in contracts_data.index]
-        contracts_data['ttms'] = ttms
-        return contracts_data
-
 
 @dataclass
 class OptionsDataDFs(ChainTs):
     """
     implementation of options time series data
     fields of SliceColumn are contained in data_dict
+    all info (maturity, option type, etc is passed inside option data dfs)
     """
-    # do not pass to ChainTs
-    # todo: do you need it here if all info (maturity, option type, etc is passed inside option data dfs)
-    #option_ticker_config: OptionTickerConfig = field(default=OptionTickerConfig.DERIBIT, init=True)
 
     @classmethod
     def reduce(cls, obj: OptionsDataDFs, contracts: List[str]) -> OptionsDataDFs:
@@ -225,7 +208,6 @@ class OptionsDataDFs(ChainTs):
         return OptionsDataDFs(chain_ts=chain_ts.loc[chain_ts[SliceColumn.CONTRACT.value].isin(contracts), :],
                               spot_data=obj.spot_data,
                               ticker=obj.ticker)
-                              #option_ticker_config=obj.option_ticker_config)
 
 
 class UnitTests(Enum):

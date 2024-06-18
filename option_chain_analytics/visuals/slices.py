@@ -7,7 +7,7 @@ from enum import Enum
 import qis
 
 from option_chain_analytics.option_chain import ExpirySlice, SliceColumn
-from option_chain_analytics.visuals.utils import map_deltas_to_str
+from option_chain_analytics.visuals.plots import map_deltas_to_str
 
 
 def plot_slice_open_interest(eslice: ExpirySlice,
@@ -134,8 +134,8 @@ class UnitTests(Enum):
 def run_unit_test(unit_test: UnitTests):
 
     from option_chain_analytics.ts_loaders import ts_data_loader_wrapper, DataSource
-    from option_chain_analytics.data.chain_loader_from_ts import create_chain_from_from_options_dfs
-    from option_chain_analytics.data.chain_ts import OptionsDataDFs
+    from option_chain_analytics.chain_loader_from_ts import create_chain_from_from_options_dfs
+    from option_chain_analytics.chain_ts import OptionsDataDFs
 
     pd.set_option('display.max_rows', 500)
     pd.set_option('display.max_columns', 500)

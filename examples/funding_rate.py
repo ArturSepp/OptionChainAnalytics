@@ -10,17 +10,17 @@ from option_chain_analytics import OptionsDataDFs
 from option_chain_analytics.ts_loaders import ts_data_loader_wrapper, DataSource
 
 
-pd.set_option('display.max_rows', 500)
-pd.set_option('display.max_columns', 500)
-pd.set_option('display.width', 1000)
-
-
 class UnitTests(Enum):
     PLOT_FUNDING_RATE = 1
     PLOT_MARK_VS_INDEX = 2
 
 
 def run_unit_test(unit_test: UnitTests):
+
+    pd.set_option('display.max_rows', 500)
+    pd.set_option('display.max_columns', 500)
+    pd.set_option('display.width', 1000)
+
 
     ticker = 'ETH'  # BTC, ETH
 
@@ -48,7 +48,7 @@ def run_unit_test(unit_test: UnitTests):
         funding_rate_annual = 365.0*funding_rate_1h.resample('D').sum()
 
         with sns.axes_style("darkgrid"):
-            fig, axs = plt.subplots(3, 1, figsize=(10, 7))
+            fig, axs = plt.subplots(3, 1, figsize=(10, 7), tight_layout=True)
             kwargs = dict(x_date_freq='ME', legend_stats=qis.LegendStats.FIRST_AVG_LAST, framealpha=0.9)
             qis.plot_time_series(df=funding_rate_1h, title='funding_rate', ax=axs[0], **kwargs)
             qis.plot_time_series(df=funding_rate_annual, title='funding_rate_annual', ax=axs[1], **kwargs)

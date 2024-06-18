@@ -12,11 +12,6 @@ from option_chain_analytics import (OptionsDataDFs,
 from option_chain_analytics.ts_loaders import ts_data_loader_wrapper, DataSource
 
 
-pd.set_option('display.max_rows', 500)
-pd.set_option('display.max_columns', 500)
-pd.set_option('display.width', 1000)
-
-
 class UnitTests(Enum):
     PRINT_CHAIN_DATA = 1
     PLOT_SLICE_DATA = 2
@@ -24,6 +19,10 @@ class UnitTests(Enum):
 
 
 def run_unit_test(unit_test: UnitTests):
+
+    pd.set_option('display.max_rows', 500)
+    pd.set_option('display.max_columns', 500)
+    pd.set_option('display.width', 1000)
 
     ticker = 'BTC'  # BTC, ETH
     # value_time = pd.Timestamp('2023-10-01 08:00:00+00:00')

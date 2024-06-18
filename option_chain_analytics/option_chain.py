@@ -1,7 +1,9 @@
 """
-iinterface for gen vol gen vol slices data
-contract convention is 'deribit-SOL-28OCT22-10-C-option'
+Option chain is a dataclass including
+    options_df as pd.Dataframe with all traded options
+    undelying_data: pd.Series is the data for the underlying
 """
+
 from __future__ import annotations  # to allow class method annotations
 
 import pandas as pd
@@ -12,40 +14,25 @@ from dataclasses import dataclass
 from typing import Union, Dict, Tuple, Optional, Literal
 from numba.typed import List
 from enum import Enum
-import qis
+import qis as qis
+import vanilla_option_pricers as bsm
 
 # analytics
-import option_chain_analytics.pricers.bsm as bsm
-from option_chain_analytics.data.config import NearestStrikeOnGrid, StrikeSelection, compute_time_to_maturity
-
-IS_FORCE_ALL_COLUMNS_DATA = False
-
-
-class UnderlyingColumn(str, Enum):
-    """
-    mandatory field for underlying data
-    """
-    EXPIRY_ID = 'expiry_id'
-    VALUE_TIME = 'value_time'
-    EXPIRY = 'expiry'
-    SPOT_PRICE = 'spot_price'
-    UNDERLYING_INDEX = 'underlying_index'
-    FORWARD_PRICE = 'forward_price'
-    IR_RATE = 'ir_rate'
-    TTM = 'ttm'
+from option_chain_analytics.config import NearestStrikeOnGrid, StrikeSelection, compute_time_to_maturity
 
 
 class SliceColumn(str, Enum):
     """
     mandatory columns for calls and puts dataframes
-    for crypto inverse options, mark_price is in units of underlying and usd_multiplier = underlying_price
+    for crypto inverse options, mark_price is in units of underlying and usd_multiplier = forward_price
     """
     # comes from data set
     CONTRACT = 'contract'  # string
     EXCHANGE_TIME = 'exchange_time'  # pd.Timestamp  record time of quate at exchange
     UNDERLYING_INDEX = 'underlying_index'  # id of underlying asset
-    UNDERLYING_PRICE = 'underlying_price'  # price of underlying asset
-    USD_MULTIPLIER = 'usd_multiplier'  # usd_multiplier = underlying_price or 1.0
+    FORWARD_PRICE = 'forward_price'  # price of option underlying asset = forward
+    SPOT_PRICE = 'spot_price'  # spot price of underlying asset
+    USD_MULTIPLIER = 'usd_multiplier'  # usd_multiplier = forward_price or 1.0
     MARK_PRICE = 'mark_price'  # option mark
     BID_PRICE = 'bid_price'  # best bid
     ASK_PRICE = 'ask_price'   # best ask
@@ -69,10 +56,24 @@ class SliceColumn(str, Enum):
     INTEREST_RATE = 'interest_rate'  # float
 
 
+class UnderlyingColumn(str, Enum):
+    """
+    mandatory field for underlying data
+    """
+    EXPIRY_ID = 'expiry_id'
+    VALUE_TIME = 'value_time'
+    EXPIRY = 'expiry'
+    SPOT_PRICE = 'spot_price'
+    UNDERLYING_INDEX = 'underlying_index'
+    FORWARD_PRICE = 'forward_price'
+    IR_RATE = 'ir_rate'
+    TTM = 'ttm'
+
+
 def get_clean_slice(df: pd.DataFrame) -> pd.DataFrame:
     cond = (df[SliceColumn.MARK_PRICE] > 0.0) \
            & (df[SliceColumn.BID_PRICE] > 0.0) & (df[SliceColumn.ASK_PRICE] > 0.0)  \
-           & (df[SliceColumn.UNDERLYING_PRICE] > 0.0)
+           & (df[SliceColumn.FORWARD_PRICE] > 0.0)
     # cond = (df[SliceColumn.MARK_PRICE] > 0.0)
     vol_cond = (df[SliceColumn.BID_IV].isna() == False) & (df[SliceColumn.ASK_IV].isna() == False)\
                & (df[SliceColumn.MARK_IV].isna() == False)
@@ -84,14 +85,15 @@ def get_clean_slice(df: pd.DataFrame) -> pd.DataFrame:
 @dataclass
 class ExpirySlice:
     """
-    slice_t of call and puts options data per expiry
+    dataclass for call and puts options data per expiry
     """
-    undelying_data: pd.Series
-    options_df: pd.DataFrame
+    options_df: pd.DataFrame  # set of call and put options data with columns enlisted in SliceColumn
+    undelying_data: pd.Series  # data of the underlying asset with index ensisted in UnderlyingColumn
+    is_force_all_columns_data: bool = False  # make sure that options_df contains all required columns
 
     def __post_init__(self):
 
-        if IS_FORCE_ALL_COLUMNS_DATA:
+        if self.is_force_all_columns_data:
             ALL_COLUMNS = list(x.value for x in SliceColumn)
             all_options_col = np.all(np.in1d(self.options_df.columns, ALL_COLUMNS, assume_unique=True))
             if not all_options_col:
@@ -248,6 +250,9 @@ class ExpirySlice:
                               is_filtered: bool = True,
                               drop_same_deltas: bool = True  # in delta space deep oot options end up with same delta
                               ) -> Tuple[Optional[pd.DataFrame], Optional[pd.Series]]:
+        """
+        get vols from the slice
+        """
         df = self.get_joint_slice(delta_bounds=delta_bounds, is_filtered=is_filtered)
         if not df.empty:
             if is_delta_space:
@@ -279,7 +284,15 @@ class ExpirySlice:
         log_strikes = np.log(vols.index.to_numpy() / self.forward)
         return vols, log_strikes
 
-    def get_atm_option_strike(self, nearest_strike_on_grid: NearestStrikeOnGrid = NearestStrikeOnGrid.MAX_OI) -> Optional[float]:
+    def get_atm_vol(self, nearest_strike_on_grid: NearestStrikeOnGrid = NearestStrikeOnGrid.MAX_OI) -> float:
+        atm_strike = self.get_atm_option_strike(nearest_strike_on_grid=nearest_strike_on_grid)
+        call_vol = self.calls.loc[atm_strike, SliceColumn.MARK_IV]
+        put_vol = self.puts.loc[atm_strike, SliceColumn.MARK_IV]
+        return 0.5*(call_vol+put_vol)
+
+    def get_atm_option_strike(self,
+                              nearest_strike_on_grid: NearestStrikeOnGrid = NearestStrikeOnGrid.MAX_OI
+                              ) -> Optional[float]:
         joint_slice = self.get_joint_slice(is_filtered=True)
         if not joint_slice.empty:
             a = joint_slice[SliceColumn.STRIKE].to_numpy()
@@ -291,12 +304,6 @@ class ExpirySlice:
             return joint_slice.index[idx]
         else:
             return None
-
-    def get_atm_vol(self, nearest_strike_on_grid: NearestStrikeOnGrid = NearestStrikeOnGrid.MAX_OI) -> float:
-        atm_strike = self.get_atm_option_strike(nearest_strike_on_grid=nearest_strike_on_grid)
-        call_vol = self.calls.loc[atm_strike, SliceColumn.MARK_IV]
-        put_vol = self.puts.loc[atm_strike, SliceColumn.MARK_IV]
-        return 0.5*(call_vol+put_vol)
 
     def get_atm_call_id(self, nearest_strike_on_grid: NearestStrikeOnGrid = NearestStrikeOnGrid.MAX_OI) -> Optional[str]:
         strike = self.get_atm_option_strike(nearest_strike_on_grid=nearest_strike_on_grid)
@@ -317,41 +324,53 @@ class ExpirySlice:
     def get_put_delta_strike(self,
                              delta: float = -0.25,
                              nearest_strike_on_grid: NearestStrikeOnGrid = NearestStrikeOnGrid.MAX_OI
-                             ) -> float:
+                             ) -> Optional[float]:
         put_wing = self.get_put_slice(is_filtered=True)
         a = put_wing[SliceColumn.DELTA].to_numpy()
-        if nearest_strike_on_grid == NearestStrikeOnGrid.MAX_OI:
-            weight = put_wing[SliceColumn.OPEN_INTEREST].to_numpy()
+        if a.shape[0] > 0:
+            if nearest_strike_on_grid == NearestStrikeOnGrid.MAX_OI:
+                weight = put_wing[SliceColumn.OPEN_INTEREST].to_numpy()
+            else:
+                weight = None
+            idx = find_idx_nearest_element(value=delta, a=a, weight=weight, nearest_strike_on_grid=nearest_strike_on_grid)
+            return put_wing.index[idx]
         else:
-            weight = None
-        idx = find_idx_nearest_element(value=delta, a=a, weight=weight, nearest_strike_on_grid=nearest_strike_on_grid)
-        return put_wing.index[idx]
+            return None
 
     def get_put_delta_option_id(self,
                                 delta: float = -0.25,
                                 nearest_strike_on_grid: NearestStrikeOnGrid = NearestStrikeOnGrid.MAX_OI
-                                ) -> str:
+                                ) -> Optional[str]:
         strike = self.get_put_delta_strike(delta=delta, nearest_strike_on_grid=nearest_strike_on_grid)
-        return self.puts.loc[strike, SliceColumn.CONTRACT]
+        if strike is not None:
+            return self.puts.loc[strike, SliceColumn.CONTRACT]
+        else:
+            return None
 
     def get_call_delta_strike(self,
                               delta: float = 0.25,
                               nearest_strike_on_grid: NearestStrikeOnGrid = NearestStrikeOnGrid.MAX_OI
-                              ) -> float:
+                              ) -> Optional[float]:
         call_wing = self.get_call_slice(is_filtered=True)
         a = call_wing[SliceColumn.DELTA].to_numpy()
-        if nearest_strike_on_grid == NearestStrikeOnGrid.MAX_OI:
-            weight = call_wing[SliceColumn.OPEN_INTEREST].to_numpy()
+        if a.shape[0] > 0:
+            if nearest_strike_on_grid == NearestStrikeOnGrid.MAX_OI:
+                weight = call_wing[SliceColumn.OPEN_INTEREST].to_numpy()
+            else:
+                weight = None
+            idx = find_idx_nearest_element(value=delta, a=a, weight=weight, nearest_strike_on_grid=nearest_strike_on_grid)
+            return call_wing.index[idx]
         else:
-            weight = None
-        idx = find_idx_nearest_element(value=delta, a=a, weight=weight, nearest_strike_on_grid=nearest_strike_on_grid)
-        return call_wing.index[idx]
+            return None
 
     def get_call_delta_option_id(self, delta: float = 0.25,
                                  nearest_strike_on_grid: NearestStrikeOnGrid = NearestStrikeOnGrid.MAX_OI
-                                 ) -> str:
+                                 ) -> Optional[str]:
         strike = self.get_call_delta_strike(delta=delta, nearest_strike_on_grid=nearest_strike_on_grid)
-        return self.calls.loc[strike, SliceColumn.CONTRACT]
+        if strike is not None:
+            return self.calls.loc[strike, SliceColumn.CONTRACT]
+        else:
+            return None
 
     def get_slice_open_interest(self) -> pd.DataFrame:
         calls = self.calls[SliceColumn.OPEN_INTEREST].rename('C')
@@ -451,7 +470,7 @@ class SlicesChain:
     def get_atm_vol(self,
                     mat_date: pd.Timestamp = None,
                     slice_id: str = None,
-                    nearest_strike_on_grid: NearestStrikeOnGrid = NearestStrikeOnGrid.MAX_OI
+                    nearest_strike_on_grid: NearestStrikeOnGrid = NearestStrikeOnGrid.NEAREST
                     ) -> Optional[float]:
         atm_call_id = self.get_atm_call_id(mat_date=mat_date, slice_id=slice_id, nearest_strike_on_grid=nearest_strike_on_grid)
         atm_put_id = self.get_atm_put_id(mat_date=mat_date, slice_id=slice_id, nearest_strike_on_grid=nearest_strike_on_grid)
@@ -478,6 +497,33 @@ class SlicesChain:
 
         return atm_vol
 
+    def get_skew(self,
+                 mat_date: pd.Timestamp = None,
+                 slice_id: str = None,
+                 nearest_strike_on_grid: NearestStrikeOnGrid = NearestStrikeOnGrid.NEAREST,
+                 delta: float = 0.25
+                 ) -> Optional[float]:
+        delta_call_id = self.get_call_delta_option_id(mat_date=mat_date, slice_id=slice_id, delta=delta, nearest_strike_on_grid=nearest_strike_on_grid)
+        delta_put_id = self.get_put_delta_option_id(mat_date=mat_date, slice_id=slice_id, delta=-delta, nearest_strike_on_grid=nearest_strike_on_grid)
+
+        call_vol = None  # only if both bid and ask are available
+        if delta_call_id is not None:
+            call = self.get_contract_data(contract=delta_call_id)
+            call_vol = call[SliceColumn.MARK_IV]
+            call_strike = call[SliceColumn.STRIKE]
+
+        put_vol = None # only if both bid and ask are available
+        if delta_put_id is not None:
+            put = self.get_contract_data(contract=delta_put_id)
+            put_vol = put[SliceColumn.MARK_IV]
+            put_strike = put[SliceColumn.STRIKE]
+
+        if call_vol is not None and put_vol is not None:
+            delta_vol = (call_vol-put_vol) / np.log(call_strike/put_strike)
+        else:
+            delta_vol = None
+        return delta_vol
+
     def get_put_delta_option_id(self,
                                 mat_date: pd.Timestamp = None,
                                 slice_id: str = None,
@@ -492,7 +538,7 @@ class SlicesChain:
 
     def get_call_delta_option_id(self, mat_date: pd.Timestamp = None, slice_id: str = None, delta: float = 0.25,
                                  nearest_strike_on_grid: NearestStrikeOnGrid = NearestStrikeOnGrid.MAX_OI
-                                 ) -> str:
+                                 ) -> Optional[str]:
         if slice_id is None and mat_date is None:
             raise ValueError(f"provide slice_id or mat_date")
         if slice_id is None:
@@ -565,7 +611,7 @@ class SlicesChain:
                     option_ids.append(slice_df.loc[strike, SliceColumn.CONTRACT])
                     strikes.append(strike)
                     strike_deltas.append(slice_df.loc[strike, SliceColumn.DELTA])
-                    index_prices.append(slice_df.loc[strike, SliceColumn.UNDERLYING_PRICE])
+                    index_prices.append(slice_df.loc[strike, SliceColumn.FORWARD_PRICE])
 
                 vols_matrix[label] = pd.Series(vols, index=deltas, name=next_date)
                 strikes_matrix[label] = pd.Series(strikes, index=deltas, name=next_date)

@@ -9,8 +9,8 @@ import qis
 from qis import TimePeriod
 from enum import Enum
 
-from option_chain_analytics.data.chain_loader_from_ts import create_chain_from_from_options_dfs
-from option_chain_analytics.data.chain_ts import OptionsDataDFs
+from option_chain_analytics.chain_loader_from_ts import create_chain_from_from_options_dfs
+from option_chain_analytics.chain_ts import OptionsDataDFs
 
 
 class RollMaturitySelection(Enum):

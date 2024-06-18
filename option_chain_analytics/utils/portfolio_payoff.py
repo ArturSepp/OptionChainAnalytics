@@ -1,10 +1,12 @@
-
+"""
+define analytics for portfolio p&l analysis
+"""
 # packages
 import numpy as np
 import pandas as pd
 from typing import Tuple
 
-import option_chain_analytics.pricers.bsm as bsm
+import vanilla_option_pricers as bsm
 from option_chain_analytics.option_chain import SliceColumn
 
 
@@ -56,8 +58,9 @@ def compute_option_portfolio_dt(portfolio_report: pd.DataFrame,
                                 ttm: float = 0.1,
                                 dt: float = 0.00,
                                 spot_grid: np.ndarray = None,
-                                spot_position: pd.Series = None,
+                                spot_position: float = None,  # delta*size
                                 change: float = 0.5,
+                                vol_bump: float = 0.0,
                                 total_name: str = 'Total P&L'
                                 ) -> Tuple[pd.DataFrame, float]:
     """
@@ -75,13 +78,13 @@ def compute_option_portfolio_dt(portfolio_report: pd.DataFrame,
         grid_price = bsm.compute_bsm_forward_grid_prices(ttm=ttm - dt,
                                                          forwards=spot_grid,
                                                          strike=strike,
-                                                         vol=vol,
+                                                         vol=vol+vol_bump,
                                                          optiontype=optiontype)
         payoff += size*(grid_price-mark_price)
     pnl = pd.Series(payoff, index=spot_grid, name='Options Payoff')
-    if spot_position is not None and np.abs(spot_position.iloc[-1]) > 0.0:
+    if spot_position is not None and np.abs(spot_position) > 0.0:
         pnl = pnl.to_frame()
-        spot_pnl = (spot_grid/current_spot-1.0) * spot_position.iloc[-1]
+        spot_pnl = (spot_grid-current_spot) * spot_position
         pnl['Spot P&L'] = spot_pnl
         pnl[total_name] = payoff + spot_pnl
     else:

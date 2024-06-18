@@ -34,6 +34,16 @@ def get_resource_path() -> str:
     return settings_data['RESOURCE_PATH']
 
 
+def get_local_resource_path() -> str:
+    """
+    read path specs in settings.yaml
+    """
+    full_file_path = Path(__file__).parent.joinpath('settings.yaml')
+    with open(full_file_path) as settings:
+        settings_data = yaml.load(settings, Loader=yaml.Loader)
+    return settings_data['LOCAL_RESOURCE_PATH']
+
+
 def get_output_path() -> str:
     """
     read path specs in settings.yaml

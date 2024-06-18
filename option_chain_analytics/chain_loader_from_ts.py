@@ -12,14 +12,16 @@ from qis import timer, TimePeriod
 
 # analytics
 from option_chain_analytics.option_chain import SliceColumn, UnderlyingColumn, ExpirySlice, SlicesChain
-from option_chain_analytics.data.chain_ts import OptionsDataDFs
+from option_chain_analytics.chain_ts import OptionsDataDFs
 
 
 # @timer
 def create_chain_from_from_options_dfs(options_data_dfs: OptionsDataDFs,
                                        value_time: pd.Timestamp,
                                        ) -> Optional[SlicesChain]:
-
+    """
+    create chain of slices for options_data_dfs
+    """
     options_df = options_data_dfs.get_time_slice(timestamp=value_time)
 
     if not options_df.empty:
@@ -29,11 +31,11 @@ def create_chain_from_from_options_dfs(options_data_dfs: OptionsDataDFs,
         for mat, df in mat_slice:
             if np.any(df[SliceColumn.OPEN_INTEREST].isna() == False):
                 # forward is contract weighted avs
-                forward = qis.np_nonan_weighted_avg(a=df[SliceColumn.UNDERLYING_PRICE],
+                forward = qis.np_nonan_weighted_avg(a=df[SliceColumn.FORWARD_PRICE],
                                                     weights=df[SliceColumn.OPEN_INTEREST])
             else:
                 # forward is contract weighted avs
-                forward = np.nanmean(df[SliceColumn.UNDERLYING_PRICE])
+                forward = np.nanmean(df[SliceColumn.FORWARD_PRICE])
             if not np.isnan(forward):
                 undelying_data = {UnderlyingColumn.EXPIRY_ID: str(mat),
                                   UnderlyingColumn.VALUE_TIME: value_time,
@@ -63,7 +65,9 @@ def create_chain_timeseries(options_data_dfs: OptionsDataDFs,
                             freq: str = 'W-FRI',
                             hour_offset: int = 8
                             ) -> Dict[pd.Timestamp, SlicesChain]:
-
+    """
+    create dictionary of timestamp and corresponding slices
+    """
     if dates_schedule is None:
         if time_period is None:
             raise ValueError(f"time_period={time_period} must be non Nons")
@@ -80,13 +84,16 @@ def create_chain_timeseries(options_data_dfs: OptionsDataDFs,
 
 
 @timer
-def generate_atm_vols(options_data_dfs: OptionsDataDFs,
-                      time_period: TimePeriod = None,
-                      freq: str = 'D',
-                      hour_offset: int = 8,
-                      days_before_roll: int = 7
-                      ) -> pd.Series:
+def generate_atm_vols_skew(options_data_dfs: OptionsDataDFs,
+                           time_period: TimePeriod = None,
+                           freq: str = 'D',
+                           hour_offset: int = 8,
+                           days_before_roll: int = 7
+                           ) -> Tuple[pd.Series, pd.Series]:
 
+    """
+    fetch time series of atm vols and skew from  options_data_dfs
+    """
     if time_period is None:
         time_period = options_data_dfs.get_start_end_date()
 
@@ -95,12 +102,15 @@ def generate_atm_vols(options_data_dfs: OptionsDataDFs,
                                          freq=freq,
                                          hour_offset=hour_offset)
     vols = {}
+    skews = {}
     for date, chain in chain_data.items():
         next_date = date + pd.DateOffset(days=days_before_roll)
         slice_id = chain.get_next_slice_after_date(mat_date=next_date)
         vols[date] = chain.get_atm_vol(slice_id=slice_id)
-    vols = pd.Series(vols)
-    return vols
+        skews[date] = chain.get_skew(slice_id=slice_id)
+    vols = pd.Series(vols, name='atm_vol')
+    skews = pd.Series(skews, name='skew')
+    return vols, skews
 
 
 @timer
@@ -111,7 +121,9 @@ def generate_vol_delta_ts(options_data_dfs: OptionsDataDFs,
                           hour_offset: Optional[int] = 8,
                           time_period: TimePeriod = None
                           ) -> Tuple[pd.DataFrame, ...]:
-
+    """
+    return dataframes of vols with columns = deltas and index = dates
+    """
     if time_period is None:
         time_period = options_data_dfs.get_start_end_date()
 

@@ -9,8 +9,7 @@ from scipy.optimize import curve_fit, brenth
 from scipy.stats import norm
 from typing import Tuple, Optional, Dict, Union
 from enum import Enum
-
-import option_chain_analytics.pricers.bsm as bsm
+import vanilla_option_pricers as bsm
 
 FUTURES = 'futures'
 ATM_VOL = 'sigma0'
@@ -336,8 +335,8 @@ class UnitTests(Enum):
 def run_unit_test(unit_test: UnitTests):
 
     # to get options data
-    from option_chain_analytics.data.chain_ts import OptionsDataDFs
-    from option_chain_analytics.data.chain_loader_from_ts import create_chain_from_from_options_dfs
+    from option_chain_analytics.chain_ts import OptionsDataDFs
+    from option_chain_analytics.chain_loader_from_ts import create_chain_from_from_options_dfs
     from option_chain_analytics.ts_loaders import ts_data_loader_wrapper
 
     if unit_test == UnitTests.PDF:

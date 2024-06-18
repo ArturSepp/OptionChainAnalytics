@@ -6,8 +6,8 @@ from typing import Dict
 from enum import Enum
 
 # analytics
-from option_chain_analytics.data.chain_loader_from_ts import create_chain_from_from_options_dfs
-from option_chain_analytics.data.chain_ts import OptionsDataDFs
+from option_chain_analytics.chain_loader_from_ts import create_chain_from_from_options_dfs
+from option_chain_analytics.chain_ts import OptionsDataDFs
 import option_chain_analytics.visuals.slices as vis
 from option_chain_analytics.option_chain import SlicesChain
 

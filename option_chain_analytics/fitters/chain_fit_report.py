@@ -35,7 +35,7 @@ def run_chain_vol_fit(chain: SlicesChain,
 
 
 def run_chain_report(chain: SlicesChain,
-                     delta_bounds: Tuple[Optional[float], Optional[float]] = (-0.25, 0.25)
+                     delta_bounds: Tuple[Optional[float], Optional[float]] = (-0.01, 0.99)
                      ) -> List[plt.Figure]:
 
     fit_params = {}
@@ -61,7 +61,7 @@ def run_chain_report(chain: SlicesChain,
             df = pd.concat([vols, pd.Series(model_vols, index=vols.index, name='Fit')], axis=1)
 
             with sns.axes_style("darkgrid"):
-                fig, ax = plt.subplots(1, 1, figsize=(10, 7))
+                fig, ax = plt.subplots(1, 1, figsize=(10, 7), tight_layout=True)
                 qis.plot_line(df=df,
                               title=f"{slice_id}",
                               yvar_format='{:,.4%}',
@@ -82,8 +82,8 @@ class UnitTests(Enum):
 def run_unit_test(unit_test: UnitTests):
 
     # to get options data
-    from option_chain_analytics.data.chain_loader_from_ts import create_chain_from_from_options_dfs
-    from option_chain_analytics.data.chain_ts import OptionsDataDFs
+    from option_chain_analytics.chain_loader_from_ts import create_chain_from_from_options_dfs
+    from option_chain_analytics.chain_ts import OptionsDataDFs
     from option_chain_analytics import local_path as local_path
 
     if unit_test == UnitTests.DERIBIT_FIT:
@@ -97,13 +97,12 @@ def run_unit_test(unit_test: UnitTests):
         print(fit_params)
 
     elif unit_test == UnitTests.YAHOO_FIT:
-        from option_chain_analytics.data.apis.yahoo import load_contract_ts_data
+        from option_chain_analytics.data.yahoo import load_contract_ts_data
 
         ticker = 'USO'
         value_time = pd.Timestamp('2023-11-24 17:21:17.248659+00:00')
-
-        ticker = 'SPY'
-        value_time = pd.Timestamp('2023-11-26 20:00:00+00:00')
+        ticker = 'NVDA'
+        value_time = pd.Timestamp('2024-06-10 20:00:07.081976+00:00')
 
         options_data_dfs = OptionsDataDFs(**load_contract_ts_data(ticker=ticker))
         time_index = options_data_dfs.get_timeindex()
@@ -114,7 +113,7 @@ def run_unit_test(unit_test: UnitTests):
 
         # run_chain_report(chain=chain)
 
-    plt.show()
+    # plt.show()
 
 
 if __name__ == '__main__':
