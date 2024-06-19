@@ -28,6 +28,42 @@ def infer_forward_discount_from_call_put_parity(call0: float, call1: float,
     return forward, discount
 
 
+def imply_forward_discount_from_mark_prices(call_mark_prices: pd.Series,
+                           put_mark_prices: pd.Series,
+                           discfactor_upper_bound: float = None,
+                           discfactor_lower_bound: float = None
+                           ) -> Optional[Tuple[float, float]]:
+    """
+    find index where Call-put changes sign
+    calls and puts are frames with traded options indexed by strikes with 'ask' and 'bid' columns
+    """
+    joint_strikes = list(set(call_mark_prices.index.to_list()) & set(put_mark_prices.index.to_list()))
+    if len(joint_strikes) == 0:
+        return None
+    atm_strikes = pd.Series(joint_strikes, index=joint_strikes).dropna().sort_index()
+    calls = call_mark_prices.loc[atm_strikes]  # alighn
+    puts = put_mark_prices.loc[atm_strikes]  # alighn
+    strikes = atm_strikes.to_numpy()
+
+    # find where the spread changes sign
+    spread = puts - calls
+    idx = np.where(np.diff(np.sign(spread)) != 0)[0] + 1  # index where spread goes from negative to positive
+    if len(idx) == 0:
+        if len(spread) >= 2:
+            idx = len(spread)-1
+        else:
+            return None
+    else:
+        idx = idx[0]
+    forward, discount = infer_forward_discount_from_call_put_parity(call0=puts.iloc[idx - 1], call1=calls.iloc[idx],
+                                                                    put0=puts.iloc[idx - 1], put1=calls.iloc[idx],
+                                                                    strike0=strikes[idx - 1], strike1=strikes[idx],
+                                                                    discfactor_upper_bound=discfactor_upper_bound,
+                                                                    discfactor_lower_bound=discfactor_lower_bound)
+
+    return forward, discount
+
+
 def imply_forward_discount(calls: pd.DataFrame,
                            puts: pd.DataFrame,
                            discfactor_upper_bound: float = None,
@@ -42,7 +78,6 @@ def imply_forward_discount(calls: pd.DataFrame,
     puts = puts.dropna(subset=['bid', 'ask'], how='all')
 
     joint_strikes = list(set(calls.index.to_list()) & set(puts.index.to_list()))
-
     if len(joint_strikes) == 0:
         return None
     atm_strikes = pd.Series(joint_strikes, index=joint_strikes).dropna().sort_index()

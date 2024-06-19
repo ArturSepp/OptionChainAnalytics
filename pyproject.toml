@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "option_chain_analytics"
-version = "1.0.14"
+version = "1.0.15"
 description = "Implementation of data management and outputs queries for Option Chains"
 license = "LICENSE.txt"
 authors = ["Artur Sepp <artursepp@gmail.com>"]
@@ -22,8 +22,7 @@ classifiers=[
         "Programming Language :: Python :: 3 :: Only",
         "Topic :: Office/Business :: Financial :: Investment",
     ]
-packages = [ {include = "option_chain_analytics"},
-             {include = "examples"}]
+packages = [ {include = "option_chain_analytics"}]
 
 [tool.poetry.urls]
 "Issues" = "https://github.com/ArturSepp/OptionChainAnalytics/issues"

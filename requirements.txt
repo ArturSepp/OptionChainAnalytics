@@ -9,3 +9,4 @@ PyYAML>=6.0
 qis>=2.0.68
 tqdm>=4.66.2
 psycopg2>=2.9.5
+vanilla_option_pricers>=1.0.2

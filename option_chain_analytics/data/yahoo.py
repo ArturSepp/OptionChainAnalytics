@@ -11,10 +11,12 @@ from enum import Enum
 import vanilla_option_pricers as bsm
 
 # internal
-from option_chain_analytics.utils.implied_forwards import imply_forward_discount
+from option_chain_analytics.utils.implied_forwards import imply_forward_discount_from_mark_prices
 from option_chain_analytics.config import TIME_FMT, compute_time_to_maturity
 from option_chain_analytics.option_chain import SliceColumn
 from option_chain_analytics import local_path as local_path
+from option_chain_analytics.fitters.price_spline import WeightType, infer_mark_price_with_qp_solver
+
 
 YAHOO_LOCAL_PATH = f"{local_path.get_resource_path()}\\yahoo_options\\"
 YAHOO_HF_LOCAL_PATH = f"{local_path.get_resource_path()}\\yahoo_hf\\"
@@ -44,7 +46,8 @@ def get_yahoo_hf_appended_file_path(ticker: str = 'SPY',
 
 
 def fetch_yahoo_options_live_data(ticker: str = 'SPY',
-                                  value_time: pd.Timestamp = pd.Timestamp.utcnow()
+                                  value_time: pd.Timestamp = pd.Timestamp.utcnow(),
+                                  eps: float = 0.0001,
                                   ) -> pd.DataFrame:
 
     # for the rate use 13w bill ticker ^IRX
@@ -57,6 +60,9 @@ def fetch_yahoo_options_live_data(ticker: str = 'SPY',
     for expiry in asset.options:
         print(f"expiry={expiry}")
         opt = asset.option_chain(expiry)
+        # ttm
+        expiry_time = pd.Timestamp(expiry, tz='UTC').replace(hour=20)  # expire at 20.00 UTC time = 16.00 US local time
+        ttm = compute_time_to_maturity(maturity_time=expiry_time, value_time=value_time)
         calls, puts = opt.calls.set_index('strike', drop=False), opt.puts.set_index('strike', drop=False)
         # calls, puts = opt.calls.set_index('contractSymbol'), opt.puts.set_index('contractSymbol')
         if calls.empty or puts.empty:
@@ -66,22 +72,36 @@ def fetch_yahoo_options_live_data(ticker: str = 'SPY',
         calls[SliceColumn.OPTION_TYPE.value] = 'C'
         puts[SliceColumn.OPTION_TYPE.value] = 'P'
 
-        # replace zeros with nans: todo remove it
-        calls['bid'] = calls['bid'].replace({0.0: np.nan})
-        calls['ask'] = calls['ask'].replace({0.0: np.nan})
-        puts['bid'] = puts['bid'].replace({0.0: np.nan})
-        puts['ask'] = puts['ask'].replace({0.0: np.nan})
-        # todo: add spot price fetch
-        # todo: call mark price spline smoother
+        # infeer mark prices
+        call_mark_prices = infer_mark_price_with_qp_solver(bid_prices=calls['bid'],
+                                                           ask_prices=calls['ask'],
+                                                           spot_price=spot_price,
+                                                           eps=eps,
+                                                           is_calls=True,
+                                                           weight_type=WeightType.TIME_VALUE,
+                                                           verbose=False
+                                                           )
 
-        # ttm
-        expiry_time = pd.Timestamp(expiry, tz='UTC').replace(hour=20)  # expire at 20.00 UTC time = 16.00 US local time
-        ttm = compute_time_to_maturity(maturity_time=expiry_time, value_time=value_time)
-        discfactor_upper_bound = np.exp(-0.8 * rf_discount_rate * ttm)
-        discfactor_lower_bound = np.exp(-1.2*rf_discount_rate*ttm)
-        out = imply_forward_discount(calls=calls, puts=puts,
-                                     discfactor_upper_bound=discfactor_upper_bound,
-                                     discfactor_lower_bound=discfactor_lower_bound)
+        put_mark_prices = infer_mark_price_with_qp_solver(bid_prices=puts['bid'],
+                                                          ask_prices=puts['ask'],
+                                                          spot_price=spot_price,
+                                                          eps=eps,
+                                                          is_calls=False,
+                                                          weight_type=WeightType.TIME_VALUE,
+                                                          verbose=False
+                                                          )
+        calls[SliceColumn.MARK_PRICE.value] = call_mark_prices
+        puts[SliceColumn.MARK_PRICE.value] = put_mark_prices
+
+        if call_mark_prices is not None and put_mark_prices is not None:
+            discfactor_upper_bound = np.exp(-0.8 * rf_discount_rate * ttm)
+            discfactor_lower_bound = np.exp(-1.2*rf_discount_rate*ttm)
+            out = imply_forward_discount_from_mark_prices(call_mark_prices=call_mark_prices,
+                                                          put_mark_prices=put_mark_prices,
+                                                          discfactor_upper_bound=discfactor_upper_bound,
+                                                          discfactor_lower_bound=discfactor_lower_bound)
+        else:
+            out = None
 
         if out is None:  # just save the snapshot without forward-dependent data
             forward, discfactor = np.nan, np.nan
@@ -91,21 +111,10 @@ def fetch_yahoo_options_live_data(ticker: str = 'SPY',
             is_add_greeks = True
 
             # option vol
-            # bid-ask can be zero if outside hours
-            # fill zeros with nan and replace with mean of adjacement values
-            # fill nans with mean of ajacent values using linear interpolate
             calls_bid = calls['bid'].to_numpy()  # do not change the raw data
             calls_ask = calls['ask'].to_numpy()
-            # select call marks with prices above zero
-            calls_mark = np.where(np.logical_and(calls_bid > 0.0, calls_ask > 0.0), 0.5*(calls_bid+calls_ask),
-                                  np.where(calls_bid > 0.0, calls_bid, calls_ask))
-            calls[SliceColumn.MARK_PRICE.value] = calls_mark
-
             puts_bid = puts['bid'].to_numpy()
             puts_ask = puts['ask'].to_numpy()
-            puts_mark = np.where(np.logical_and(puts_bid > 0.0, puts_ask > 0.0), 0.5*(puts_bid+puts_ask),
-                                 np.where(puts_bid > 0.0, puts_bid, puts_ask))
-            puts[SliceColumn.MARK_PRICE.value] = puts_mark
 
             calls[SliceColumn.BID_IV.value] = bsm.infer_bsm_ivols_from_model_slice_prices(ttm=ttm, forward=forward,
                                                                                           strikes=calls['strike'].to_numpy(),
@@ -120,7 +129,7 @@ def fetch_yahoo_options_live_data(ticker: str = 'SPY',
             calls[SliceColumn.MARK_IV.value] = bsm.infer_bsm_ivols_from_model_slice_prices(ttm=ttm, forward=forward,
                                                                                            strikes=calls['strike'].to_numpy(),
                                                                                            optiontypes=np.full(calls.index.shape, 'C'),
-                                                                                           model_prices=calls_mark,
+                                                                                           model_prices=calls[SliceColumn.MARK_PRICE.value].to_numpy(),
                                                                                            discfactor=discfactor)
             puts[SliceColumn.BID_IV.value] = bsm.infer_bsm_ivols_from_model_slice_prices(ttm=ttm, forward=forward,
                                                                                          strikes=puts['strike'].to_numpy(),
@@ -135,7 +144,7 @@ def fetch_yahoo_options_live_data(ticker: str = 'SPY',
             puts[SliceColumn.MARK_IV.value] = bsm.infer_bsm_ivols_from_model_slice_prices(ttm=ttm, forward=forward,
                                                                                           strikes=puts['strike'].to_numpy(),
                                                                                           optiontypes=np.full(puts.index.shape, 'P'),
-                                                                                          model_prices=puts_mark,
+                                                                                          model_prices=puts[SliceColumn.MARK_PRICE.value].to_numpy(),
                                                                                           discfactor=discfactor)
 
         option_df = pd.concat([calls, puts], axis=0)
@@ -288,7 +297,7 @@ def run_unit_test(unit_test: UnitTests):
     tickers = etfs + stocks
 
     if unit_test == UnitTests.UPDATE_OPTIONS_DATA:
-        # tickers = ['SPY']
+        # tickers = ['HYG']
         update_options_data(tickers, is_live_markets=True)
 
     elif unit_test == UnitTests.UPDATE_HF_DATA:
