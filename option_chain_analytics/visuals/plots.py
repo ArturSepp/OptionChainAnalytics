@@ -15,7 +15,108 @@ def create_dummy_line(**kwargs):
     return Line2D([], [], **kwargs)
 
 
-def plot_slice_price_fit(bid_price: pd.Series,
+def plot_vol_slice_fit_error_bar(bid_vols: Dict[str, pd.Series],  # should include 'bid', 'ask', model
+                  ask_vols: Dict[str, pd.Series],
+                  model_vols: Dict[str, pd.Series],
+                  title: str = None,
+                  strike_name: str = 'strike',
+                  bid_name: str = 'bid',
+                  ask_name: str = 'ask',
+                  mid_name: str = 'mid',
+                  model_color: str = 'black',
+                  bid_color: str = 'red',
+                  ask_color: str = 'green',
+                  mid_color: str = 'lightslategrey',
+                  is_add_mids: bool = False,
+                  atm_points: Dict[str, Tuple[float, float]] = None,
+                  yvar_format: str = '{:.0%}',
+                  xvar_format: Optional[str] = '{:0,.0f}',
+                  fontsize: int = 12,
+                  ylabel: str = 'Implied vols',
+                  x_rotation: int = 0,
+                  ax: plt.Subplot = None,
+                  **kwargs
+                  ) -> Optional[plt.Figure]:
+
+    if ax is None:
+        fig, ax = plt.subplots(1, 1, figsize=(8, 8))
+    else:
+        fig = None
+
+    # merge vols
+    clean_model_vols = {}
+    lower_errors = {}
+    upper_errors = {}
+    for key in model_vols.keys():
+        df = pd.concat([bid_vols[key].rename(bid_name),
+                        ask_vols[key].rename(ask_name),
+                        model_vols[key].rename(key)],
+                       axis=1).sort_index().dropna()
+        clean_model_vols[key] = df[key]
+        lower_errors[key] = df[bid_name]
+        upper_errors[key] = df[ask_name]
+    clean_model_vols_df = pd.DataFrame.from_dict(clean_model_vols, orient='columns')
+
+
+    # add fitted vols line
+    if len(model_vols.keys()) == 1:
+        palette = [model_color]
+    else:
+        palette = sns.husl_palette(len(model_vols.keys()), h=.5)
+    sns.lineplot(data=clean_model_vols_df, palette=palette, dashes=False, ax=ax)
+    #for legend, color in zip(clean_model_vols_df.columns, palette):
+    #    lines.append((legend, {'color': color}))
+
+    lines = []  # for legend
+    # add mids with error bars
+    for idx, key in enumerate(model_vols.keys()):
+        x = clean_model_vols[key].index.to_numpy()
+        mark = clean_model_vols[key].to_numpy()
+        lower_error = lower_errors[key].to_numpy()
+        upper_error = upper_errors[key].to_numpy()
+        ax.scatter(x, y=lower_error, marker="^", color=palette[idx], s=3, linewidth=1)
+        ax.scatter(x, y=upper_error, marker="v", color=palette[idx], s=3, linewidth=1)
+        ax.scatter(x, y=mark, marker="o", color=palette[idx], s=3, linewidth=1)
+
+        # add error line for valie errors
+        # valid_error = np.logical_and(mark >= lower_error, mark <= upper_error)
+        # error = sns.utils.ci_to_errsize((lower_error[valid_error], upper_error[valid_error]), mark[valid_error])
+        mid = 0.5*(lower_error+upper_error)
+        error = sns.utils.ci_to_errsize((lower_error, upper_error), mid)
+        error = np.where(error>0.0, error, 0.0)
+        ax.errorbar(x=x, y=mid, yerr=error, fmt='none', color=palette[idx], linewidth=1)
+        lines.append((key, {'color': palette[idx], 'linestyle': '', 'marker': 'o'}))
+
+    # atm points
+    if atm_points is not None:
+        for key, (x, y) in atm_points.items():
+            ax.scatter(x, y, marker='*', color='navy', s=40, linewidth=5)
+            lines.append(('ATM', {'color': 'navy', 'linestyle': '', 'marker': '*'}))
+
+    ax.legend([create_dummy_line(**l[1]) for l in lines],  # Line handles
+              [l[0] for l in lines],  # Line titles
+              loc='upper center',
+              framealpha=0,
+              fontsize=fontsize,
+              ncol=3)
+    qis.set_legend_colors(ax)
+
+    if x_rotation != 0:
+        [tick.set_rotation(x_rotation) for tick in ax.get_xticklabels()]
+
+    # ticks
+    if xvar_format is not None:
+        ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda z, _: xvar_format.format(z)))
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda z, _: yvar_format.format(z)))
+
+    ax.set_ylabel(ylabel, fontsize=fontsize)
+    if title is not None:
+        ax.set_title(title, fontsize=fontsize, color='darkblue')
+
+    return fig
+
+
+def plot_price_slice_fit(bid_price: pd.Series,
                          ask_price: pd.Series,
                          model_prices: Union[pd.Series, pd.DataFrame],
                          title: str = None,

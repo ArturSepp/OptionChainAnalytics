@@ -1,5 +1,6 @@
 # prop data loaders
 prop/
+testing/
 
 # created by virtualenv automatically
 Lib/
@@ -140,3 +141,4 @@ venv.bak/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+/testing/

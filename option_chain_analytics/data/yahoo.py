@@ -1,22 +1,24 @@
 """
 use yahoo api to create option chain data frame with columns = SliceColumn
 """
-
+import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import yfinance as yf
 import qis as qis
-from typing import List, Dict, Any, Literal
+from typing import List, Dict, Any, Literal, Union
 from enum import Enum
 import vanilla_option_pricers as bsm
 
 # internal
-from option_chain_analytics.utils.implied_forwards import imply_forward_discount_from_mark_prices
+from option_chain_analytics.fitters.utils import plot_slice_fits
 from option_chain_analytics.config import TIME_FMT, compute_time_to_maturity
 from option_chain_analytics.option_chain import SliceColumn
 from option_chain_analytics import local_path as local_path
-from option_chain_analytics.fitters.price_spline import WeightType, infer_mark_price_with_qp_solver
 
+from option_chain_analytics.fitters.qp_price_fitter import (WeightType,
+                                                            infer_mark_price_with_qp_solver,
+                                                            fit_slice_mark_prices_implied_vols_with_qp_solver)
 
 YAHOO_LOCAL_PATH = f"{local_path.get_resource_path()}\\yahoo_options\\"
 YAHOO_HF_LOCAL_PATH = f"{local_path.get_resource_path()}\\yahoo_hf\\"
@@ -47,8 +49,11 @@ def get_yahoo_hf_appended_file_path(ticker: str = 'SPY',
 
 def fetch_yahoo_options_live_data(ticker: str = 'SPY',
                                   value_time: pd.Timestamp = pd.Timestamp.utcnow(),
+                                  is_joint_solver: bool = True,
                                   eps: float = 0.0001,
-                                  ) -> pd.DataFrame:
+                                  verbose: bool = False,
+                                  produce_fit_report: bool = True
+                                  ) -> Union[pd.DataFrame, List[plt.Figure]]:
 
     # for the rate use 13w bill ticker ^IRX
     rhist = yf.Ticker('^IRX').history(period="2d", interval="1m")
@@ -57,6 +62,7 @@ def fetch_yahoo_options_live_data(ticker: str = 'SPY',
     asset = yf.Ticker(ticker)
     spot_price = asset.history(period="2d", interval="15m")['Close'].iloc[-1]  # option data is 15m delayed
     all_options = []
+    figs = []
     for expiry in asset.options:
         print(f"expiry={expiry}")
         opt = asset.option_chain(expiry)
@@ -71,121 +77,74 @@ def fetch_yahoo_options_live_data(ticker: str = 'SPY',
         # add type
         calls[SliceColumn.OPTION_TYPE.value] = 'C'
         puts[SliceColumn.OPTION_TYPE.value] = 'P'
+        # rename
+        calls = calls.rename({'bid': SliceColumn.BID_PRICE.value, 'ask': SliceColumn.ASK_PRICE.value}, axis=1)
+        puts = puts.rename({'bid': SliceColumn.BID_PRICE.value, 'ask': SliceColumn.ASK_PRICE.value}, axis=1)
 
-        # infeer mark prices
-        call_mark_prices = infer_mark_price_with_qp_solver(bid_prices=calls['bid'],
-                                                           ask_prices=calls['ask'],
-                                                           spot_price=spot_price,
-                                                           eps=eps,
-                                                           is_calls=True,
-                                                           weight_type=WeightType.TIME_VALUE,
-                                                           verbose=False
-                                                           )
+        # create slice df with necessary inputs
+        slice_df = pd.concat([calls, puts], axis=0)
+        slice_df = slice_df.set_index('strike', drop=False).sort_index()
+        slice_df[SliceColumn.TTM.value] = ttm
+        slice_df[SliceColumn.SPOT_PRICE.value] = spot_price
 
-        put_mark_prices = infer_mark_price_with_qp_solver(bid_prices=puts['bid'],
-                                                          ask_prices=puts['ask'],
-                                                          spot_price=spot_price,
-                                                          eps=eps,
-                                                          is_calls=False,
-                                                          weight_type=WeightType.TIME_VALUE,
-                                                          verbose=False
-                                                          )
-        calls[SliceColumn.MARK_PRICE.value] = call_mark_prices
-        puts[SliceColumn.MARK_PRICE.value] = put_mark_prices
+        slice_fit_outputs = fit_slice_mark_prices_implied_vols_with_qp_solver(slice_df=slice_df,
+                                                                              is_joint_solver=is_joint_solver,
+                                                                              eps=eps,
+                                                                              verbose=verbose)
 
-        if call_mark_prices is not None and put_mark_prices is not None:
-            discfactor_upper_bound = np.exp(-0.8 * rf_discount_rate * ttm)
-            discfactor_lower_bound = np.exp(-1.2*rf_discount_rate*ttm)
-            out = imply_forward_discount_from_mark_prices(call_mark_prices=call_mark_prices,
-                                                          put_mark_prices=put_mark_prices,
-                                                          discfactor_upper_bound=discfactor_upper_bound,
-                                                          discfactor_lower_bound=discfactor_lower_bound)
-        else:
-            out = None
+        # pasre outputs
+        calls[SliceColumn.MARK_PRICE.value] = slice_fit_outputs.call_mark_prices
+        calls[SliceColumn.BID_IV.value] = slice_fit_outputs.calls_bid_iv
+        calls[SliceColumn.ASK_IV.value] = slice_fit_outputs.calls_ask_iv
+        calls[SliceColumn.MARK_IV.value] = slice_fit_outputs.calls_mark_iv
 
-        if out is None:  # just save the snapshot without forward-dependent data
-            forward, discfactor = np.nan, np.nan
-            is_add_greeks = False
-        else:
-            forward, discfactor = out
-            is_add_greeks = True
-
-            # option vol
-            calls_bid = calls['bid'].to_numpy()  # do not change the raw data
-            calls_ask = calls['ask'].to_numpy()
-            puts_bid = puts['bid'].to_numpy()
-            puts_ask = puts['ask'].to_numpy()
-
-            calls[SliceColumn.BID_IV.value] = bsm.infer_bsm_ivols_from_model_slice_prices(ttm=ttm, forward=forward,
-                                                                                          strikes=calls['strike'].to_numpy(),
-                                                                                          optiontypes=np.full(calls.index.shape, 'C'),
-                                                                                          model_prices=calls_bid,
-                                                                                          discfactor=discfactor)
-            calls[SliceColumn.ASK_IV.value] = bsm.infer_bsm_ivols_from_model_slice_prices(ttm=ttm, forward=forward,
-                                                                                          strikes=calls['strike'].to_numpy(),
-                                                                                          optiontypes=np.full(calls.index.shape, 'C'),
-                                                                                          model_prices=calls_ask,
-                                                                                          discfactor=discfactor)
-            calls[SliceColumn.MARK_IV.value] = bsm.infer_bsm_ivols_from_model_slice_prices(ttm=ttm, forward=forward,
-                                                                                           strikes=calls['strike'].to_numpy(),
-                                                                                           optiontypes=np.full(calls.index.shape, 'C'),
-                                                                                           model_prices=calls[SliceColumn.MARK_PRICE.value].to_numpy(),
-                                                                                           discfactor=discfactor)
-            puts[SliceColumn.BID_IV.value] = bsm.infer_bsm_ivols_from_model_slice_prices(ttm=ttm, forward=forward,
-                                                                                         strikes=puts['strike'].to_numpy(),
-                                                                                         optiontypes=np.full(puts.index.shape, 'P'),
-                                                                                         model_prices=puts_bid,
-                                                                                         discfactor=discfactor)
-            puts[SliceColumn.ASK_IV.value] = bsm.infer_bsm_ivols_from_model_slice_prices(ttm=ttm, forward=forward,
-                                                                                         strikes=puts['strike'].to_numpy(),
-                                                                                         optiontypes=np.full(puts.index.shape, 'P'),
-                                                                                         model_prices=puts_ask,
-                                                                                         discfactor=discfactor)
-            puts[SliceColumn.MARK_IV.value] = bsm.infer_bsm_ivols_from_model_slice_prices(ttm=ttm, forward=forward,
-                                                                                          strikes=puts['strike'].to_numpy(),
-                                                                                          optiontypes=np.full(puts.index.shape, 'P'),
-                                                                                          model_prices=puts[SliceColumn.MARK_PRICE.value].to_numpy(),
-                                                                                          discfactor=discfactor)
+        puts[SliceColumn.MARK_PRICE.value] = slice_fit_outputs.put_mark_prices
+        puts[SliceColumn.BID_IV.value] = slice_fit_outputs.puts_bid_iv
+        puts[SliceColumn.BID_IV.value] = slice_fit_outputs.puts_ask_iv
+        puts[SliceColumn.MARK_IV.value] = puts[SliceColumn.BID_IV.value] = slice_fit_outputs.puts_mark_iv
 
         option_df = pd.concat([calls, puts], axis=0)
-        option_df[SliceColumn.SPOT_PRICE.value] = spot_price
-        option_df[SliceColumn.FORWARD_PRICE.value] = forward
 
         # enter extra data
+        forward = slice_fit_outputs.forward
+        discfactor = slice_fit_outputs.discfactor
+        option_df[SliceColumn.SPOT_PRICE.value] = spot_price
+        option_df[SliceColumn.FORWARD_PRICE.value] = forward
         option_df[SliceColumn.CONTRACT.value] = option_df.index.to_list()
-
-        option_df = option_df.rename({'bid': SliceColumn.BID_PRICE.value,
-                                      'ask': SliceColumn.ASK_PRICE.value,
-                                      'openInterest': SliceColumn.OPEN_INTEREST.value,
-                                      'volume': SliceColumn.VOLUME.value,
-                                      'strike': SliceColumn.STRIKE.value}, axis=1)
-
         option_df[SliceColumn.EXPIRY.value] = expiry_time
         option_df[SliceColumn.TTM.value] = ttm
-
-        discount_rate = - np.log(discfactor) / ttm
+        discount_rate = - np.log(slice_fit_outputs.discfactor) / ttm
         if isinstance(discount_rate, np.ndarray):
             discount_rate = discount_rate[0]
         option_df[SliceColumn.INTEREST_RATE.value] = discount_rate
 
+        option_df = option_df.rename({'openInterest': SliceColumn.OPEN_INTEREST.value,
+                                      'volume': SliceColumn.VOLUME.value,
+                                      'strike': SliceColumn.STRIKE.value}, axis=1)
         option_df = option_df.drop(['lastTradeDate', 'lastPrice', 'change', 'percentChange', 'impliedVolatility',
                                     'inTheMoney', 'contractSize', 'currency'], axis=1)
 
         # add greeks
-        if is_add_greeks:
-            strike = option_df[SliceColumn.STRIKE.value].to_numpy()
-            vol = option_df[SliceColumn.MARK_IV.value].to_numpy()
-            optiontype = option_df[SliceColumn.OPTION_TYPE.value].to_numpy()
-            option_df[SliceColumn.DELTA.value] = bsm.compute_bsm_vanilla_delta_vector(forward=forward, ttm=ttm, strike=strike, vol=vol,
-                                                                                      optiontype=optiontype, discfactor=discfactor)
-            option_df[SliceColumn.VEGA.value] = bsm.compute_bsm_vanilla_vega_vector(forward=forward, ttm=ttm, strike=strike, vol=vol)
-            option_df[SliceColumn.THETA.value] = bsm.compute_bsm_vanilla_theta_vector(forward=forward, ttm=ttm, strike=strike, vol=vol,
-                                                         optiontype=optiontype, discfactor=discfactor, discount_rate=discount_rate)
-            option_df[SliceColumn.GAMMA.value] = bsm.compute_bsm_vanilla_gamma_vector(forward=forward, ttm=ttm, strike=strike, vol=vol)
+        strike = option_df[SliceColumn.STRIKE.value].to_numpy()
+        vol = option_df[SliceColumn.MARK_IV.value].to_numpy()
+        optiontype = option_df[SliceColumn.OPTION_TYPE.value].to_numpy()
+        option_df[SliceColumn.DELTA.value] = bsm.compute_bsm_vanilla_delta_vector(forward=forward, ttm=ttm, strike=strike,
+                                                                                  vol=vol,
+                                                                                  optiontype=optiontype, discfactor=discfactor)
+        option_df[SliceColumn.VEGA.value] = bsm.compute_bsm_vanilla_vega_vector(forward=forward, ttm=ttm, strike=strike, vol=vol)
+        option_df[SliceColumn.THETA.value] = bsm.compute_bsm_vanilla_theta_vector(forward=forward, ttm=ttm, strike=strike,
+                                                                                  vol=vol,
+                                                                                  optiontype=optiontype, discfactor=discfactor,
+                                                                                  discount_rate=discount_rate)
+        option_df[SliceColumn.GAMMA.value] = bsm.compute_bsm_vanilla_gamma_vector(forward=forward, ttm=ttm, strike=strike, vol=vol)
 
         all_options.append(option_df)
-    df = pd.concat(all_options, axis=0)
 
+        if produce_fit_report:
+            fig = plot_slice_fits(slice_df=slice_df, slice_fit_outputs=slice_fit_outputs, expiry=expiry)
+            figs.append(fig)
+
+    df = pd.concat(all_options, axis=0)
     df[SliceColumn.MATURITY_ID.value] = df[SliceColumn.EXPIRY.value].apply(lambda x: x.strftime('%d%b%Y'))
     df[SliceColumn.USD_MULTIPLIER.value] = 1.0
     df[SliceColumn.CONTRACT.value] = df.index
@@ -204,17 +163,31 @@ def fetch_yahoo_options_live_data(ticker: str = 'SPY',
     # arrange order
     df = df[[x.value for x in SliceColumn]]
 
-    return df
+    return df, figs
 
 
-def update_options_data(tickers: List[str] = ("SPY", ), is_live_markets: bool = True) -> None:
+def update_options_data(tickers: List[str] = ("SPY", ),
+                        eps: float = 0.0001,
+                        is_live_markets: bool = True,
+                        produce_fit_report: bool = True
+                        ) -> None:
 
     for ticker in tickers:
-        if is_live_markets:
-            value_time = pd.Timestamp.utcnow() - pd.Timedelta(minutes=20)
-        else:  # yesterday close
-            value_time = (pd.Timestamp.utcnow() - pd.Timedelta(days=1)).normalize().replace(hour=20)
-        df = fetch_yahoo_options_live_data(ticker, value_time=value_time)
+        try:
+            if is_live_markets:
+                value_time = pd.Timestamp.utcnow() - pd.Timedelta(minutes=20)
+            else:  # yesterday close
+                raise NotImplementedError
+                # value_time = (pd.Timestamp.utcnow() - pd.Timedelta(days=1)).normalize().replace(hour=20)
+            df, figs = fetch_yahoo_options_live_data(ticker, value_time=value_time, produce_fit_report=produce_fit_report,
+                                                     eps=eps)
+        except:
+            print(f"failed to fetch data for {ticker}")
+            continue
+
+        if produce_fit_report:
+            file_name = f"{ticker}_{value_time.strftime(TIME_FMT)}"
+            qis.save_figs_to_pdf(figs=figs, file_name=file_name, local_path=YAHOO_LOCAL_PATH)
 
         # save the current snapshot to csv
         file_path = get_yahoo_local_file_path(current_time=value_time, ticker=ticker)
@@ -298,7 +271,9 @@ def run_unit_test(unit_test: UnitTests):
 
     if unit_test == UnitTests.UPDATE_OPTIONS_DATA:
         # tickers = ['HYG']
-        update_options_data(tickers, is_live_markets=True)
+        update_options_data(tickers, is_live_markets=True,
+                            eps=0.001,
+                    produce_fit_report=True)
 
     elif unit_test == UnitTests.UPDATE_HF_DATA:
         update_hf_data(tickers)
