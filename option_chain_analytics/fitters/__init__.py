@@ -1,2 +1,2 @@
 from option_chain_analytics.fitters.qp_price_fitter import (WeightType,
-                                                            infer_mark_price_with_qp_solver)
+                                                            fit_slice_mark_prices_implied_vols_with_qp_solver)

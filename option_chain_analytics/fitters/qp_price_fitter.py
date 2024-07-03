@@ -9,12 +9,12 @@ from numba import njit
 from typing import Optional, Tuple
 from enum import Enum
 
-from option_chain_analytics import SliceColumn
 from option_chain_analytics.fitters.utils import imply_bid_ask_mark_vols, SliceFitOutputs
 from option_chain_analytics.option_chain import SliceColumn
 from scipy.interpolate import make_interp_spline, BSpline
 
 from option_chain_analytics.utils.implied_forwards import imply_forward_discount_from_bid_ask_prices
+from option_chain_analytics.utils.numerics import set_matrix_d1_d2
 
 
 class WeightType(Enum):
@@ -25,11 +25,13 @@ class WeightType(Enum):
 
 
 def fit_slice_mark_prices_implied_vols_with_qp_solver(slice_df: pd.DataFrame,
-                                                      is_joint_solver: bool = True,
+                                                      weight_type: WeightType = WeightType.TIME_VALUE,
                                                       eps: float = 0.0001,
+                                                      bid_ask_contraint_band: float = 0.99,  # will also be multpilied by weights
                                                       verbose: bool = False
                                                       ):
     """
+    slice_df must be indexed by strikes
     fit mark prices and compute implied vols
     """
     calls = slice_df.loc[slice_df[SliceColumn.OPTION_TYPE.value] == 'C', :]
@@ -48,21 +50,22 @@ def fit_slice_mark_prices_implied_vols_with_qp_solver(slice_df: pd.DataFrame,
     mark_prices = infer_call_put_prices_with_qp_solver(slice_df=slice_df,
                                                        forward=forward,
                                                        discfactor=discfactor,
-                                                       is_joint_solver=is_joint_solver,
+                                                       weight_type=weight_type,
                                                        eps=eps,
                                                        is_reindex_to_slice_strikes=True,
+                                                       bid_ask_contraint_band=bid_ask_contraint_band,
                                                        verbose=verbose)
 
     call_mark_prices = mark_prices.iloc[:, 0]
     put_mark_prices = mark_prices.iloc[:, 1]
 
     ttm = slice_df[SliceColumn.TTM].iloc[0]
-    calls_bid = calls[SliceColumn.BID_PRICE].to_numpy()  # do not change the raw data
-    calls_ask = calls[SliceColumn.ASK_PRICE].to_numpy()
-    puts_bid = puts[SliceColumn.BID_PRICE].to_numpy()
-    puts_ask = puts[SliceColumn.ASK_PRICE].to_numpy()
-    call_strikes = calls[SliceColumn.STRIKE].to_numpy()
-    put_strikes = puts[SliceColumn.STRIKE].to_numpy()
+    calls_bid = calls[SliceColumn.BID_PRICE].to_numpy(float)  # do not change the raw data
+    calls_ask = calls[SliceColumn.ASK_PRICE].to_numpy(float)
+    puts_bid = puts[SliceColumn.BID_PRICE].to_numpy(float)
+    puts_ask = puts[SliceColumn.ASK_PRICE].to_numpy(float)
+    call_strikes = calls[SliceColumn.STRIKE].to_numpy(float)
+    put_strikes = puts[SliceColumn.STRIKE].to_numpy(float)
 
     calls_bid_iv, calls_ask_iv, calls_mark_iv = imply_bid_ask_mark_vols(strikes=call_strikes,
                                                                         bid_prices=calls_bid,
@@ -98,12 +101,13 @@ def infer_call_put_prices_with_qp_solver(slice_df: pd.DataFrame,
                                          forward: float,
                                          discfactor: float,
                                          weight_type: WeightType = WeightType.TIME_VALUE,
-                                         is_joint_solver: bool = False,
                                          eps: float = 0.0001,
+                                         bid_ask_contraint_band: float = 0.99,  # deflate / inflate
                                          call_slice_name: str = 'call',
                                          put_slice_name: str = 'put',
                                          verbose: bool = True,
-                                         is_reindex_to_slice_strikes: bool = False
+                                         is_reindex_to_slice_strikes: bool = False,
+                                         total_num_of_iterations: int = 5
                                          ) -> pd.DataFrame:
     """
     given slices infer call and put marks
@@ -111,38 +115,26 @@ def infer_call_put_prices_with_qp_solver(slice_df: pd.DataFrame,
     calls_slice = slice_df.loc[slice_df[SliceColumn.OPTION_TYPE.value] == 'C', :]
     puts_slice = slice_df.loc[slice_df[SliceColumn.OPTION_TYPE.value] == 'P', :]
 
-    if is_joint_solver:
+    for n in np.arange(total_num_of_iterations):
         call_marks, put_marks = infer_mark_call_put_price_with_qp_solver(
-            call_bid_prices=calls_slice[SliceColumn.BID_PRICE],
-            call_ask_prices=calls_slice[SliceColumn.ASK_PRICE],
-            put_bid_prices=puts_slice[SliceColumn.BID_PRICE],
-            put_ask_prices=puts_slice[SliceColumn.ASK_PRICE],
+            call_bid_ask_prices=calls_slice[[SliceColumn.BID_PRICE, SliceColumn.ASK_PRICE]],
+            put_bid_ask_prices=puts_slice[[SliceColumn.BID_PRICE, SliceColumn.ASK_PRICE]],
             forward_price=forward,
             discfactor=discfactor,
             eps=eps,
+            bid_ask_contraint_band=bid_ask_contraint_band,
             weight_type=weight_type,
             verbose=verbose)
-    else:
-
-        call_marks = infer_mark_price_with_qp_solver(bid_prices=calls_slice[SliceColumn.BID_PRICE.value],
-                                                     ask_prices=calls_slice[SliceColumn.ASK_PRICE.value],
-                                                     forward=forward,
-                                                     eps=eps,
-                                                     is_calls=True,
-                                                     weight_type=weight_type,
-                                                     verbose=verbose
-                                                     ).rename(call_slice_name)
-        put_marks = infer_mark_price_with_qp_solver(bid_prices=puts_slice[SliceColumn.BID_PRICE.value],
-                                                    ask_prices=puts_slice[SliceColumn.ASK_PRICE.value],
-                                                    forward=forward,
-                                                    eps=eps,
-                                                    is_calls=False,
-                                                    weight_type=weight_type,
-                                                    verbose=verbose
-                                                    ).rename(put_slice_name)
+        if call_marks is not None:
+            print(f"solved iteration={n+1} with eps={eps}, bid_ask_contraint_band={bid_ask_contraint_band}")
+            break
+        else:
+            print(f"unsolved iteration={n+1} with eps={eps}, bid_ask_contraint_band={bid_ask_contraint_band}"
+                  f" reducing eps by 0.1 and increasing bid_ask_contraint_band by 5.0 ")
+            eps *= 0.1
+            bid_ask_contraint_band *=2.0
 
     mark_prices = pd.concat([call_marks, put_marks], axis=1).sort_index()
-
     if is_reindex_to_slice_strikes:  # reindex to given strikes
         slice_strikes = pd.Index(slice_df[SliceColumn.STRIKE.value].unique())
         mark_prices = mark_prices.reindex(index=slice_strikes).sort_index()
@@ -168,45 +160,17 @@ def compute_eror_weights(weight_type: WeightType,
         mid_price = 0.5 * (bid_price + ask_price)
         # floor time_value to 1e-8
         if is_calls:
-            time_value = np.maximum(mid_price - np.maximum(forward_price - strikes, 0.0), 1e-8)
+            time_value = np.maximum(mid_price - np.maximum(forward_price - strikes, 0.0), 1e-16)
         else:
-            time_value = np.maximum(mid_price - np.maximum(strikes - forward_price, 0.0), 1e-8)
+            time_value = np.maximum(mid_price - np.maximum(strikes - forward_price, 0.0), 1e-16)
 
-        # filter out potential outliers in the tails
-        # find max time value around at - region
-        if len(strikes) == 0:
-            return None
-        elif len(strikes) == 1:
-            atm_spot_index = 0
-            atm_time_value = time_value
-        else:
-            atm_spot_index = np.absolute(strikes - forward_price).argmin()
-            up_shift = np.minimum(atm_spot_index+2, len(time_value)-1)
-            down_shift = np.maximum(atm_spot_index-2, 0)
-            atm_time_value = np.max(time_value[down_shift:up_shift])
-
-        # ensure that intrinsic values are declining
-        last_time_value = atm_time_value # right side
-        for n_ in np.arange(atm_spot_index, 0, step=-1):
-            if time_value[n_] > last_time_value: # use last_time_value for backfill don't update last_time_value
-                last_time_value *= 0.0
-                time_value[n_] = last_time_value
-            else:
-                last_time_value = time_value[n_]
-        last_time_value = atm_time_value # left side
-        for n_ in np.arange(atm_spot_index, time_value.shape[0]):
-            if time_value[n_] > last_time_value: # use last_time_value for backfill don't update last_time_value
-                last_time_value *= 0.0  # penalise for a sequence of outliers
-                time_value[n_] = last_time_value
-            else:
-                last_time_value = time_value[n_]
-        time_value = time_value / np.nansum(time_value)
+        time_value = time_value / forward_price # / np.nansum(time_value)
         # w = np.diag(time_value)
         abs_m = np.reciprocal(np.maximum(np.abs(strikes - forward_price), 1e-8))
         abs_m = abs_m / np.nansum(abs_m)
         # mix with abs monenyness
-        w = np.diag(abs_m+time_value)
-        # w = np.diag(time_value)
+        # w = np.diag(abs_m+time_value)
+        w = np.diag(time_value)
 
     elif weight_type == WeightType.ABS_MONEYNESS:
         abs_m = np.maximum(np.abs(strikes - forward_price), 1e-8)
@@ -220,209 +184,150 @@ def compute_eror_weights(weight_type: WeightType,
     return w
 
 
-@njit
-def set_matrix_g(x: np.ndarray) -> np.ndarray:
+def get_aligned_bid_ask_prices(bid_ask_prices: pd.DataFrame) -> Tuple[pd.Series, pd.Series, pd.Series, pd.Series, pd.Series]:
     """
-    compute the matrix f partial derivatives
-    loop is optimised with njit
+    align bid and ask prices and assigne the weight
+    validity: 0: both are nans, 1: one is nan, 2: both are good
     """
-    nn = x.shape[0]
-    g = np.zeros((nn, nn))
-    for n in np.arange(nn):
-        if n == 0:
-            d_right = 1.0 / (x[n + 1] - x[n])
-            g[n, 0] = d_right
-            g[n, 1] = - d_right
-        elif n == nn - 1:
-            d_left = 1.0 / (x[n] - x[n - 1])
-            g[n, nn-2] = - d_left
-            g[n, nn-1] = d_left
-        else:
-            d_left = 1.0 / (x[n] - x[n - 1])
-            d_right = 1.0 / (x[n + 1] - x[n])
-            g[n, n - 1] = - d_left
-            g[n, n] = d_left + d_right
-            g[n, n + 1] = - d_right
-    return g
-
-
-@njit
-def set_matrix_g1(x: np.ndarray) -> np.ndarray:
+    joint_prices = bid_ask_prices.sort_index()
+    bid_prices, ask_prices = joint_prices.iloc[:, 0], joint_prices.iloc[:, 1]
+    mid_prices = 0.5*(bid_prices + ask_prices)
+    quote_validity = pd.Series(np.where(pd.isna(mid_prices) == False, 1, 0), index=mid_prices.index)
+    bid_ask_spread = 0.5*(ask_prices-bid_prices)
     """
-    compute the matrix f partial derivatives without using dx
-    loop is optimised with njit
-    """
-    nn = x.shape[0]
-    g = np.zeros((nn, nn))
-    for n in np.arange(nn):
-        if n == 0:
-            g[n, 0] = -1
-            g[n, 1] = 1
-        elif n == nn - 1:
-            g[n, nn-2] = -1
-            g[n, nn-1] = 1
-        else:
-            g[n, n] = -1
-            g[n, n + 1] = 1
-    return g
-
-
-def get_aligned_bid_ask_prices(bid_prices: pd.Series, ask_prices: pd.Series) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    # set zeros to nans
-    joint_prices = pd.concat([bid_prices, ask_prices], axis=1).replace({0.0: np.nan})
-    mid_price = 0.5*(joint_prices.iloc[:, 0]+joint_prices.iloc[:, 1])
     # exclude prices where one quote is nan
     mid_price = mid_price.dropna()
     joint_prices = joint_prices.loc[mid_price.index, :]
     strikes = mid_price.index.to_numpy()
     bid_prices = joint_prices.iloc[:, 0].to_numpy()
     ask_prices = joint_prices.iloc[:, 1].to_numpy()
-    return strikes, bid_prices, ask_prices
-
-
-def infer_mark_price_with_qp_solver(bid_prices: pd.Series,
-                                    ask_prices: pd.Series,
-                                    forward: float,
-                                    eps: float = 1e-8,
-                                    is_calls: bool = True,
-                                    weight_type: WeightType = WeightType.TIME_VALUE,
-                                    verbose: bool = True
-                                    ) -> Optional[pd.Series]:
+    mid_prices = pd.Series(0.5 * (bid_prices + ask_prices), index=strikes)
+    bid_prices = pd.Series(bid_prices, index=strikes)
+    ask_prices = pd.Series(ask_prices, index=strikes)
     """
-    solve qp problem to infer valid mark prices
-    """
-    strikes, bid_price, ask_price = get_aligned_bid_ask_prices(bid_prices=bid_prices, ask_prices=ask_prices)
-    mid_price = 0.5 * (bid_price + ask_price)
-
-    # set error weights
-    w = compute_eror_weights(weight_type=weight_type,
-                             strikes=strikes,
-                             bid_price=bid_price,
-                             ask_price=ask_price,
-                             forward_price=forward,
-                             is_calls=is_calls)
-
-    # set optimisation problem
-    n = strikes.shape[0]
-    z = cvx.Variable(n, nonneg=True)
-    G = set_matrix_g(x=strikes)
-    h = -eps*np.ones(n)
-    Q = np.transpose(w) @ w
-    q = - Q @ mid_price
-    if is_calls:
-        h[0] = 1.0 - eps
-        constraints = [G @ z <= h]
-    else:
-        h[-1] = - 1.0 + eps
-        constraints = [G @ z <= - h]
-
-    # start solver
-    objective_fun = 0.5*cvx.quad_form(z, Q) + q @ z
-    objective = cvx.Minimize(objective_fun)
-    problem = cvx.Problem(objective, constraints)
-    try:
-        kwargs = dict(max_iters=1000, abstol=1e-12, reltol=1e-12)
-        problem.solve(solver=cvx.ECOS, verbose=verbose, **kwargs)
-        #problem.solve()
-        option_marks = z.value
-    except cvx.error.SolverError:
-        option_marks = None
-    if option_marks is not None:
-        option_marks = pd.Series(option_marks, index=strikes, name=SliceColumn.MARK_PRICE)
-    else:
-        print(f"problem is not solved, try to decrease smootheness eps={eps}")
-    return option_marks
+    return mid_prices, quote_validity, bid_ask_spread, bid_prices, ask_prices
 
 
-def infer_mark_call_put_price_with_qp_solver(call_bid_prices: pd.Series,
-                                             call_ask_prices: pd.Series,
-                                             put_bid_prices: pd.Series,
-                                             put_ask_prices: pd.Series,
+def infer_mark_call_put_price_with_qp_solver(call_bid_ask_prices: pd.DataFrame,
+                                             put_bid_ask_prices: pd.DataFrame,
                                              forward_price: float,
                                              discfactor: float,
                                              eps: float = 1e-8,
                                              weight_type: WeightType = WeightType.TIME_VALUE,
-                                             verbose: bool = True
+                                             verbose: bool = True,
+                                             is_add_bid_ask_constraint: bool = True,
+                                             bid_ask_contraint_band: float = 0.99  # deflate / inflate
                                              ) -> Tuple[Optional[pd.Series], Optional[pd.Series]]:
     """
     solve qp problem to infer valid mark prices
     """
-    # set zeros to nans
-    call_strikes, call_bid_price, call_ask_price = get_aligned_bid_ask_prices(bid_prices=call_bid_prices, ask_prices=call_ask_prices)
-    call_mid_price = pd.Series(0.5 * (call_bid_price + call_ask_price), index=call_strikes)
-
-    put_strikes, put_bid_price, put_ask_price = get_aligned_bid_ask_prices(bid_prices=put_bid_prices, ask_prices=put_ask_prices)
-    put_mid_price = pd.Series(0.5 * (put_bid_price + put_ask_price), put_strikes)
-
     # reindex at joint strikes
-    joint_strikes = list(set(call_strikes) & set(put_strikes))
-    joint_strikes = pd.Series(joint_strikes, index=joint_strikes).dropna().sort_index()
+    joint_strikes = list(set(call_bid_ask_prices.index.to_list()) & set(put_bid_ask_prices.index.to_list()))
+    call_bid_ask_prices = call_bid_ask_prices.reindex(index=joint_strikes).sort_index()
+    put_bid_ask_prices = put_bid_ask_prices.reindex(index=joint_strikes).sort_index()
+    joint_strikes = call_bid_ask_prices.index.to_numpy()
 
-    call_mid_price = call_mid_price.reindex(index=joint_strikes.index)
-    put_mid_price = put_mid_price.reindex(index=joint_strikes.index)
+    # set mids and validity
+    call_mid_price, call_validity, call_bid_ask_spread, call_bid_prices, call_ask_prices \
+        = get_aligned_bid_ask_prices(bid_ask_prices=call_bid_ask_prices)
+    put_mid_price, put_validity, put_bid_ask_spread, put_bid_prices, put_ask_prices \
+        = get_aligned_bid_ask_prices(bid_ask_prices=put_bid_ask_prices)
 
-    is_call_available = np.where(np.isnan(call_mid_price.to_numpy()), 0 , 1)
-    is_put_available = np.where(np.isnan(put_mid_price.to_numpy()), 0, 1)
-    call_mid_price = call_mid_price.fillna(0).to_numpy()
-    put_mid_price = put_mid_price.fillna(0).to_numpy()
+    # for solver we need to fill nanns
+    call_mid_price = call_mid_price.fillna(0.0).to_numpy()
+    put_mid_price = put_mid_price.fillna(0.0).to_numpy()
+    # these are used as trackers for weight
+    is_call_available = call_validity.to_numpy(float)
+    is_put_available = put_validity.to_numpy(float)
+    is_call_put_available = is_call_available*is_put_available
 
     # set error weights
-    w_calls = compute_eror_weights(weight_type=weight_type,
-                                   strikes=joint_strikes.to_numpy(),
-                                   bid_price=call_mid_price,
-                                   ask_price=call_mid_price,
-                                   forward_price=forward_price,
-                                   is_calls=True)
+    weight_calls = compute_eror_weights(weight_type=weight_type,
+                                        strikes=joint_strikes,
+                                        bid_price=call_bid_prices.to_numpy(),
+                                        ask_price=call_ask_prices.to_numpy(),
+                                        forward_price=forward_price,
+                                        is_calls=True)
 
-    w_puts = compute_eror_weights(weight_type=weight_type,
-                                  strikes=joint_strikes.to_numpy(),
-                                  bid_price=put_mid_price,
-                                  ask_price=put_mid_price,
-                                  forward_price=forward_price,
-                                  is_calls=False)
-    # multi by availability
-    w_calls = np.diag(w_calls)
-    w_puts = np.diag(w_puts)
-    w_ind = np.diag(np.concatenate((w_calls*is_call_available, w_puts*is_put_available)))
-    w_ind_joint = np.diag(w_calls*is_call_available*w_puts*is_put_available)
+    weight_puts = compute_eror_weights(weight_type=weight_type,
+                                       strikes=joint_strikes,
+                                       bid_price=put_bid_prices.to_numpy(),
+                                       ask_price=put_ask_prices.to_numpy(),
+                                       forward_price=forward_price,
+                                       is_calls=False)
+    # multiply by availability
+    weight_calls = np.diag(weight_calls)
+    weight_puts = np.diag(weight_puts)
+    weights_call_put = np.diag(np.concatenate((weight_calls*is_call_available, weight_puts*is_put_available)))
     mid_price = np.concatenate((call_mid_price, put_mid_price))
 
     # set optimisation problem
-    n = len(joint_strikes.index)
+    n = len(joint_strikes)
     n2 = 2*n
     z = cvx.Variable(n2, nonneg=True)
-    G = set_matrix_g(x=joint_strikes.to_numpy())
-    Q = np.transpose(w_ind) @ w_ind
+    D1, D2 = set_matrix_d1_d2(x=joint_strikes)
+    Q = np.transpose(weights_call_put) @ weights_call_put
     q = - Q @ mid_price
 
     h1 = -eps*np.ones(n)
     h2 = -eps*np.ones(n)
     h1[0] = 1.0 - eps
-    h2[-1] = -1.0 + eps
+    h2[-1] = 1.0 - eps
 
-    constraints = [G @ z[:n] <= h1]
-    constraints = constraints + [G @ z[n:] <= -h2]
+    constraints = [D1 @ z[:n] <= h1]
+    constraints = constraints + [D1 @ z[n:] <= h2]
 
     # put call parity
-    call_put_rhs = discfactor * (forward_price - joint_strikes.to_numpy())
-    price_diff = 500.0*np.abs(joint_strikes.to_numpy()/forward_price - 1.0)  # proportional to moneyness
-    constraints = constraints + [w_ind_joint@(z[:n] - z[n:] - call_put_rhs) <= w_ind_joint@price_diff]
-    constraints = constraints + [-w_ind_joint @ price_diff <= w_ind_joint @ (z[:n] - z[n:] - call_put_rhs)]
+    call_put_rhs = discfactor * (forward_price - joint_strikes)
+    bid_ask_spreads = 0.5 * (call_bid_ask_spread.to_numpy() + put_bid_ask_spread.to_numpy())
+    call_put_parity_constraints = []
+    for idx, is_valid in enumerate(is_call_put_available):
+        if is_valid > 0.0:  # put index is shifted by n
+            call_put_parity_constraints += [-bid_ask_spreads[idx] <= z[idx] - z[n + idx] - call_put_rhs[idx]]
+            call_put_parity_constraints += [bid_ask_spreads[idx] >= z[idx] - z[n + idx] - call_put_rhs[idx]]
+    constraints = constraints + call_put_parity_constraints
+
+    if is_add_bid_ask_constraint:
+        call_constraints = []
+        call_bids = np.minimum((1.0-bid_ask_contraint_band)*call_bid_prices.to_numpy(), 0.0)
+        call_asks = (1.0 + bid_ask_contraint_band) * call_ask_prices.to_numpy()
+        for idx, (is_call_available_, call_bid, call_ask) in enumerate(zip(is_call_available, call_bids, call_asks)):
+            if is_call_available_ > 0:
+                call_constraints += [z[idx] >= call_bid]
+                call_constraints += [z[idx] <= call_ask]
+
+        put_constraints = []
+        put_bids = np.minimum((1.0-bid_ask_contraint_band)*put_bid_prices.to_numpy(), 0.0)
+        put_asks = (1.0 + bid_ask_contraint_band) * put_ask_prices.to_numpy()
+        for idx, (is_put_available_, put_bid, put_ask) in enumerate(zip(is_put_available, put_bids, put_asks)):
+            if is_put_available_ > 0:  # puts are shifted by n
+                put_constraints += [z[n+idx] >= put_bid]
+                put_constraints += [z[n+idx] <= put_ask]
+
+        constraints = constraints + call_constraints + put_constraints
 
     # start solver
-    objective_fun = 0.5*cvx.quad_form(z, Q) + q @ z
+    D2c = cvx.psd_wrap(np.transpose(D2) @ D2)
+    D2p = cvx.psd_wrap(np.transpose(D2) @ D2)
+    convexity_objective = 0.5*(cvx.quad_form(z[:n], D2c)+cvx.quad_form(z[n:], D2p))
+
+    # total objective_fun
+    objective_fun = 0.5*cvx.quad_form(z, Q) + q @ z # + convexity_objective
     objective = cvx.Minimize(objective_fun)
     problem = cvx.Problem(objective, constraints)
     try:
-        kwargs = dict(max_iters=2000, abstol=1e-8, reltol=1e-8)
-        problem.solve(solver=cvx.ECOS, verbose=verbose, **kwargs)
+        kwargs = dict(max_iters=20000, feastol=1e-12, abstol=1e-12, reltol=1e-16)
+        # problem.solve(solver=cvx.ECOS, verbose=verbose, **kwargs)
+        problem.solve(solver=cvx.ECOS_BB, verbose=True, **kwargs)
+        #problem.solve(verbose=verbose)
         # problem.solve()
         option_marks = z.value
     except cvx.error.SolverError:
         option_marks = None
     if option_marks is not None:
-        call_marks = pd.Series(np.maximum(option_marks[:n], 1e-12), index=joint_strikes, name='calls')
-        put_marks = pd.Series(np.maximum(option_marks[n:], 1e-12), index=joint_strikes, name='puts')
+        print(f"puts: {np.logical_and(option_marks[n:]>=put_bid_prices.to_numpy(), option_marks[n:]<=put_ask_prices.to_numpy())} ")
+        call_marks = pd.Series(np.maximum(option_marks[:n], 1e-16), index=joint_strikes, name='calls')
+        put_marks = pd.Series(np.maximum(option_marks[n:], 1e-16), index=joint_strikes, name='puts')
     else:
         print(f"problem is not solved, try to decrease smootheness eps={eps}")
         call_marks, put_marks = None, None
@@ -611,6 +516,27 @@ def compute_b_spline(x: np.ndarray, y: np.ndarray, degree: int = 3, eps: float =
     print(spline_coeffs)
 
     return t_knots, spline_coeffs
+
+
+@njit
+def set_matrix_g1(x: np.ndarray) -> np.ndarray:
+    """
+    compute the matrix f partial derivatives without using dx
+    loop is optimised with njit
+    """
+    nn = x.shape[0]
+    g = np.zeros((nn, nn))
+    for n in np.arange(nn):
+        if n == 0:
+            g[n, 0] = -1
+            g[n, 1] = 1
+        elif n == nn - 1:
+            g[n, nn-2] = -1
+            g[n, nn-1] = 1
+        else:
+            g[n, n] = -1
+            g[n, n + 1] = 1
+    return g
 
 
 class UnitTests(Enum):

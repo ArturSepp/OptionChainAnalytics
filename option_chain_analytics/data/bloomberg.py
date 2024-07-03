@@ -13,6 +13,7 @@ from option_chain_analytics import local_path as local_path
 BBG_LOCAL_PATH = f"{local_path.get_resource_path()}\\bbg_vols\\"
 print(BBG_LOCAL_PATH)
 
+
 class UnitTests(Enum):
     CREATE_VOL_DATA = 1
 

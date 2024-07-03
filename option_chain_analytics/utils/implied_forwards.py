@@ -86,8 +86,10 @@ def imply_forward_discount_from_bid_ask_prices(calls_bid_ask: pd.DataFrame,
     calls and puts are frames with traded options indexed by strikes with 'ask' and 'bid' columns
     """
     # remove bid / ask with nans
-    calls = calls_bid_ask.replace({0.0: np.nan}).dropna(axis=0, how='any')
-    puts = put_bid_ask.replace({0.0: np.nan}).dropna(axis=0, how='any')
+    calls = calls_bid_ask.dropna(axis=0, how='any')  # .replace({0.0: np.nan}) itm calls can have bid 0.0
+    puts = put_bid_ask.dropna(axis=0, how='any')  # .replace({0.0: np.nan}) itm puts can have bid 0.0
+    calls = calls.loc[np.logical_or(calls.iloc[:, 0].to_numpy() > 0.0, calls.iloc[:, 1].to_numpy()) > 0.0, :] # both bid ask are not zero
+    puts = puts.loc[np.logical_or(puts.iloc[:, 0].to_numpy() > 0.0, puts.iloc[:, 1].to_numpy()) > 0.0, :] # both bid ask are not zero
 
     joint_strikes = list(set(calls.index.to_list()) & set(puts.index.to_list()))
     if len(joint_strikes) == 0:

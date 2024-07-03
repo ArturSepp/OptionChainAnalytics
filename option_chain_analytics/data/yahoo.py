@@ -17,7 +17,6 @@ from option_chain_analytics.option_chain import SliceColumn
 from option_chain_analytics import local_path as local_path
 
 from option_chain_analytics.fitters.qp_price_fitter import (WeightType,
-                                                            infer_mark_price_with_qp_solver,
                                                             fit_slice_mark_prices_implied_vols_with_qp_solver)
 
 YAHOO_LOCAL_PATH = f"{local_path.get_resource_path()}\\yahoo_options\\"

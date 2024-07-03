@@ -27,7 +27,6 @@ from option_chain_analytics.option_chain import SliceColumn
 
 # option_chain_anaytics
 from option_chain_analytics.fitters.qp_price_fitter import (WeightType,
-                                                            infer_mark_price_with_qp_solver,
                                                             compute_b_spline,
                                                             bspline_interpolation,
                                                             fit_slice_mark_prices_implied_vols_with_qp_solver)
@@ -40,8 +39,9 @@ OUTPUT_PATH = lp.get_output_path()
 
 
 def report_chain_fits_with_qp_solver(chain_df: pd.DataFrame,
-                                     is_joint_solver: bool = True,
+                                     weight_type: WeightType = WeightType.TIME_VALUE,
                                      eps: float = 0.0001,
+                                     bid_ask_contraint_band: float = 0.1,  # deflate / inflate
                                      verbose: bool = False
                                      ) -> List[plt.Figure]:
     dfs = chain_df.groupby('mat_id', sort=False)
@@ -50,10 +50,11 @@ def report_chain_fits_with_qp_solver(chain_df: pd.DataFrame,
         print(mat_id)
         slice_df = slice_df.set_index('strike', drop=False).sort_index()
         slice_fit_outputs = fit_slice_mark_prices_implied_vols_with_qp_solver(slice_df=slice_df,
-                                                                              is_joint_solver=is_joint_solver,
+                                                                              weight_type=weight_type,
                                                                               eps=eps,
+                                                                              bid_ask_contraint_band=bid_ask_contraint_band,
                                                                               verbose=verbose)
-        fig = plot_slice_fits(slice_df=slice_df, slice_fit_outputs=slice_fit_outputs, expiry=mat_id)
+        fig = plot_slice_fits(slice_df=slice_df, slice_fit_outputs=slice_fit_outputs, expiry=mat_id, bounds=(0.01, 0.95))
         qis.set_suptitle(fig, title=f"{mat_id}")
         figs.append(fig)
 
@@ -99,8 +100,13 @@ class UnitTests(Enum):
 
 
 def run_unit_test(unit_test: UnitTests):
-    file_name = 'SPY_20240614152847'
-    file_name = 'SPY_20240620194129'
+
+    is_yahoo = False
+    if is_yahoo:
+        file_name = 'SPY_20240620190830'
+    else:
+        file_name = 'SPX_20240524160000'
+
     chain_df = qis.load_df_from_csv(file_name=file_name, parse_dates=False, local_path=LOCAL_PATH)
     # chain_df = qis.load_df_from_excel(file_name=file_name, local_path=LOCAL_PATH)
 
@@ -108,19 +114,22 @@ def run_unit_test(unit_test: UnitTests):
         dfs = chain_df.groupby('mat_id', sort=False)
         for mat_id, data in dfs:
             print(mat_id)
-        slice_df = dfs.get_group('12Jul2024').set_index('strike', drop=False).sort_index()
+        slice_df = dfs.get_group('20Sep2024').set_index('strike', drop=False).sort_index()
         slice_fit_outputs = fit_slice_mark_prices_implied_vols_with_qp_solver(slice_df=slice_df,
-                                                                              is_joint_solver=True,
-                                                                              eps=0.001,
+                                                                              weight_type=WeightType.BID_ASK_SPREAD,
+                                                                              eps=0.00001,
+                                                                              bid_ask_contraint_band=0.0,
                                                                               verbose=True)
-        plot_slice_fits(slice_df=slice_df, slice_fit_outputs=slice_fit_outputs)
+        # plot_slice_fits(slice_df=slice_df, slice_fit_outputs=slice_fit_outputs, bounds=None)
+        plot_slice_fits(slice_df=slice_df, slice_fit_outputs=slice_fit_outputs, bounds=(0.01, 0.95))
 
         plt.show()
 
     elif unit_test == UnitTests.REPORT_CHAIN_FITS:
         figs = report_chain_fits_with_qp_solver(chain_df=chain_df,
-                                                is_joint_solver=True,
-                                                eps=0.0001,
+                                                weight_type=WeightType.BID_ASK_SPREAD,
+                                                eps=0.00001,
+                                                bid_ask_contraint_band=0.0,
                                                 verbose=False
                                                 )
         qis.save_figs_to_pdf(figs=figs, file_name=file_name, local_path=OUTPUT_PATH)

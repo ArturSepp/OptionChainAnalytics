@@ -135,6 +135,7 @@ def plot_price_slice_fit(bid_price: pd.Series,
                          fontsize: int = 12,
                          ylabel: str = 'Prices',
                          x_rotation: int = 0,
+                         is_log: bool = False,
                          ax: plt.Subplot = None,
                          **kwargs
                          ) -> Optional[plt.Figure]:
@@ -210,6 +211,9 @@ def plot_price_slice_fit(bid_price: pd.Series,
     ax.set_ylabel(ylabel, fontsize=fontsize)
     if title is not None:
         ax.set_title(title, fontsize=fontsize, color='darkblue')
+
+    if is_log:
+        ax.set_yscale('log')
 
     return fig
 
