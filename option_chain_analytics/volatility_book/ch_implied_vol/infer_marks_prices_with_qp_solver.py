@@ -22,20 +22,15 @@ import qis as qis
 from typing import List
 from enum import Enum
 
-from option_chain_analytics.fitters.utils import plot_slice_fits
+from option_chain_analytics.fitters.utils import plot_slice_fits, plot_price_spline_fits
 from option_chain_analytics.option_chain import SliceColumn
+import vanilla_option_pricers as bsm
 
 # option_chain_anaytics
 from option_chain_analytics.fitters.qp_price_fitter import (WeightType,
-                                                            compute_b_spline,
+                                                            estimate_b_spline,
                                                             bspline_interpolation,
                                                             fit_slice_mark_prices_implied_vols_with_qp_solver)
-
-# set path to recourses
-from option_chain_analytics import local_path as lp
-# LOCAL_PATH = "C://Users//uarts//Python//qdev-quant-regime_switch-dev//resources//"
-LOCAL_PATH = lp.get_local_resource_path()
-OUTPUT_PATH = lp.get_output_path()
 
 
 def report_chain_fits_with_qp_solver(chain_df: pd.DataFrame,
@@ -62,68 +57,111 @@ def report_chain_fits_with_qp_solver(chain_df: pd.DataFrame,
 
 
 def compute_interpolated_price_grid(slice_df: pd.DataFrame,
-                                  weight_type: WeightType = WeightType.TIME_VALUE,
-                                  eps: float = 0.00001,
-                                  call_slice_name: str = 'Arb-free call spline',
-                                  put_slice_name: str = 'Arb-free put spline',
-                                  verbose: bool = True
-                                  ) -> pd.DataFrame:
+                                    weight_type: WeightType = WeightType.BID_ASK_SPREAD,
+                                    eps: float = 0.00001,
+                                    bid_ask_contraint_band: float = 0.0,  # deflate / inflate
+                                    degree: int = 3,
+                                    verbose: bool = True
+                                    ) -> pd.DataFrame:
 
-    spot_price = np.nanmean(slice_df[SliceColumn.SPOT_PRICE.value])
-    calls_slice = slice_df.loc[slice_df[SliceColumn.OPTION_TYPE.value] == 'C', :]
-    puts_slice = slice_df.loc[slice_df[SliceColumn.OPTION_TYPE.value] == 'P', :]
+    slice_fit_outputs, call_spline, put_spline = fit_slice_mark_prices_implied_vols_with_qp_solver(slice_df=slice_df,
+                                                                                                   weight_type=weight_type,
+                                                                                                   eps=eps,
+                                                                                                   bid_ask_contraint_band=bid_ask_contraint_band,
+                                                                                                   verbose=verbose,
+                                                                                                   is_apply_bspline=True)
+    fig = plot_slice_fits(slice_df=slice_df, slice_fit_outputs=slice_fit_outputs, expiry='mat_id', bounds=(0.01, 0.95))
 
-    call_marks = infer_mark_price_with_qp_solver(bid_prices=calls_slice[SliceColumn.BID_PRICE.value],
-                                                 ask_prices=calls_slice[SliceColumn.ASK_PRICE.value],
-                                                 forward=spot_price,
-                                                 eps=eps,
-                                                 is_calls=True,
-                                                 weight_type=weight_type,
-                                                 verbose=verbose
-                                                 ).rename(call_slice_name)
-    print(call_marks)
+    call_marks = slice_fit_outputs.call_mark_prices.sort_index()
 
     x = call_marks.index.to_numpy()
     y = call_marks.to_numpy()
-    x1 = np.linspace(call_marks.index[0], call_marks.index[-1], 300)
-    t_knots, spline_coeffs = compute_b_spline(x=x, y=y, is_monotonic=False)
-    y_spline1 = bspline_interpolation(x=x1, t_knots=t_knots, spline_coeffs=spline_coeffs)
-    spline = pd.Series(y_spline1, index=x1, name='y_spline')
-    df = pd.concat([call_marks, spline], axis=1).sort_index()
-    qis.plot_line(df=df)
+    strike_grid = np.linspace(call_marks.index[0], call_marks.index[-1], 10001)
+    b_spline = call_spline  # estimate_b_spline(x=x, y=y, eps=eps, degree=degree)
+    spline_prices = bspline_interpolation(x=strike_grid, b_spline=b_spline)
+    #spline_prices = bsm.compute_bsm_vanilla_price_vector(ttm=0.25, forward=5380.52, strike=strike_grid, vol=0.25,  optiontype='C', discfactor=1.0)
+    spline_prices = pd.Series(spline_prices, index=strike_grid, name='spline')
+    plot_price_spline_fits(mark_prices=call_marks, spline_prices=spline_prices)
+
+
+def compute_interpolated_price_grid_spline(slice_df: pd.DataFrame,
+                                    weight_type: WeightType = WeightType.BID_ASK_SPREAD,
+                                    eps: float = 0.00001,
+                                    bid_ask_contraint_band: float = 0.0,  # deflate / inflate
+                                    degree: int = 3,
+                                    verbose: bool = True
+                                    ) -> pd.DataFrame:
+
+    slice_fit_outputs, call_spline, put_spline = fit_slice_mark_prices_implied_vols_with_qp_solver(slice_df=slice_df,
+                                                                          weight_type=weight_type,
+                                                                          eps=0.00001,
+                                                                          bid_ask_contraint_band=bid_ask_contraint_band,
+                                                                          verbose=verbose)
+    fig = plot_slice_fits(slice_df=slice_df, slice_fit_outputs=slice_fit_outputs, expiry='mat_id', bounds=(0.01, 0.95))
+
+    call_marks = slice_fit_outputs.call_mark_prices.sort_index()
+
+    x = call_marks.index.to_numpy()
+    y = call_marks.to_numpy()
+    strike_grid = np.linspace(call_marks.index[0], call_marks.index[-1], 10000)
+    b_spline = estimate_b_spline(x=x, y=y, eps=eps, degree=degree)
+    spline_prices = bspline_interpolation(x=strike_grid, b_spline=b_spline)
+    #spline_prices = bsm.compute_bsm_vanilla_price_vector(ttm=0.25, forward=5380.52, strike=strike_grid, vol=0.25,  optiontype='C', discfactor=1.0)
+    spline_prices = pd.Series(spline_prices, index=strike_grid, name='spline')
+    plot_price_spline_fits(mark_prices=call_marks, spline_prices=spline_prices)
+
 
 
 class UnitTests(Enum):
-    RUN_SLICE_FIT = 1
+    RUN_SLICE_FIT_FOR_BOOK_FIGURE = 1
     REPORT_CHAIN_FITS = 2
     INTERPOLATED_PRICE_GRID = 3
+    INTERPOLATED_PRICE_GRID_SPLINE = 4
 
 
 def run_unit_test(unit_test: UnitTests):
 
-    is_yahoo = False
-    if is_yahoo:
-        file_name = 'SPY_20240620190830'
-    else:
-        file_name = 'SPX_20240524160000'
+    # set path to recourses
+    from option_chain_analytics import local_path as lp
+    # LOCAL_PATH = "C://Users//uarts//Python//qdev-quant-regime_switch-dev//resources//"
+    LOCAL_PATH = lp.get_local_resource_path()
+    OUTPUT_PATH = lp.get_output_path()
+    LOCAL_FIGURE_PATH = "C://Users//artur//OneDrive//My Papers//Volatility Book//VolatilityBookGithub//chapters//ImpliedVolatility//figures//"
+
+    file_name = 'SPX_20240524160000'
 
     chain_df = qis.load_df_from_csv(file_name=file_name, parse_dates=False, local_path=LOCAL_PATH)
-    # chain_df = qis.load_df_from_excel(file_name=file_name, local_path=LOCAL_PATH)
 
-    if unit_test == UnitTests.RUN_SLICE_FIT:
+    if unit_test == UnitTests.RUN_SLICE_FIT_FOR_BOOK_FIGURE:
+        expiry = '20Sep2024'
         dfs = chain_df.groupby('mat_id', sort=False)
         for mat_id, data in dfs:
             print(mat_id)
-        slice_df = dfs.get_group('20Sep2024').set_index('strike', drop=False).sort_index()
-        slice_fit_outputs = fit_slice_mark_prices_implied_vols_with_qp_solver(slice_df=slice_df,
-                                                                              weight_type=WeightType.BID_ASK_SPREAD,
-                                                                              eps=0.00001,
-                                                                              bid_ask_contraint_band=0.0,
-                                                                              verbose=True)
+        slice_df = dfs.get_group(expiry).set_index('strike', drop=False).sort_index()
+        slice_fit_outputs, call_spline, put_spline = fit_slice_mark_prices_implied_vols_with_qp_solver(slice_df=slice_df,
+                                                                                                       weight_type=WeightType.BID_ASK_SPREAD,
+                                                                                                       eps=0.00001,
+                                                                                                       bid_ask_contraint_band=0.0,
+                                                                                                       verbose=True)
         # plot_slice_fits(slice_df=slice_df, slice_fit_outputs=slice_fit_outputs, bounds=None)
-        plot_slice_fits(slice_df=slice_df, slice_fit_outputs=slice_fit_outputs, bounds=(0.01, 0.95))
-
-        plt.show()
+        fig = plot_slice_fits(slice_df=slice_df, slice_fit_outputs=slice_fit_outputs,
+                              expiry=expiry,
+                              bounds=(0.01, 0.95))
+        is_save = False
+        if is_save:
+            from PIL import Image
+            import matplotlib.cm as cm
+            file_path = qis.save_fig(fig, file_name='spx_slice_fit', file_type=qis.FileTypes.EPS,
+                                     dpi=3600, local_path=LOCAL_FIGURE_PATH)
+            #image = plt.imread(file_path)#.convert('L', palette=1).save(file_path)
+            #plt.imsave(file_path, image, dpi=3600, cmap=plt.cm.gray)
+            #image = Image.open(file_path).convert("L", colors=16*256)
+            #arr = np.asarray(image)
+            #plt.imshow(arr, cmap='gray', vmin=0, vmax=255)
+            #plt.savefig(file_path, arr, dpi=3*3600, cmap=plt.cm.gray)
+            #plt.savefig(f"{file_path}.pdf", arr, dpi=3*3600, cmap=plt.cm.gray)
+            #image.save(file_path, arr, dpi=3*3600, cmap=plt.cm.gray)
+            #image.save(f"{file_path}.pdf", arr, dpi=3*3600, cmap=plt.cm.gray)
 
     elif unit_test == UnitTests.REPORT_CHAIN_FITS:
         figs = report_chain_fits_with_qp_solver(chain_df=chain_df,
@@ -133,18 +171,24 @@ def run_unit_test(unit_test: UnitTests):
                                                 verbose=False
                                                 )
         qis.save_figs_to_pdf(figs=figs, file_name=file_name, local_path=OUTPUT_PATH)
+        plt.close('all')
 
-    elif unit_test == UnitTests.INTERPOLATED_PRICE_GRID:
+    elif unit_test == UnitTests.INTERPOLATED_PRICE_GRID_SPLINE:
         dfs = chain_df.groupby('mat_id', sort=False)
         slice_df = dfs.get_group('20Sep2024').set_index('strike', drop=False).sort_index()
-        compute_interpolated_price_grid(slice_df=slice_df)
+        compute_interpolated_price_grid(slice_df=slice_df,
+                                        weight_type=WeightType.BID_ASK_SPREAD,
+                                        eps=0.00001,
+                                        degree=3,
+                                        bid_ask_contraint_band=0.0
+                                        )
 
-        plt.show()
+    plt.show()
 
 
 if __name__ == '__main__':
 
-    unit_test = UnitTests.REPORT_CHAIN_FITS
+    unit_test = UnitTests.RUN_SLICE_FIT_FOR_BOOK_FIGURE
 
     is_run_all_tests = False
     if is_run_all_tests:

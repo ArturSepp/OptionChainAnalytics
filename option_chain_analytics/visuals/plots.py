@@ -22,12 +22,7 @@ def plot_vol_slice_fit_error_bar(bid_vols: Dict[str, pd.Series],  # should inclu
                   strike_name: str = 'strike',
                   bid_name: str = 'bid',
                   ask_name: str = 'ask',
-                  mid_name: str = 'mid',
                   model_color: str = 'black',
-                  bid_color: str = 'red',
-                  ask_color: str = 'green',
-                  mid_color: str = 'lightslategrey',
-                  is_add_mids: bool = False,
                   atm_points: Dict[str, Tuple[float, float]] = None,
                   yvar_format: str = '{:.0%}',
                   xvar_format: Optional[str] = '{:0,.0f}',
@@ -47,16 +42,15 @@ def plot_vol_slice_fit_error_bar(bid_vols: Dict[str, pd.Series],  # should inclu
     clean_model_vols = {}
     lower_errors = {}
     upper_errors = {}
-    for key in model_vols.keys():
-        df = pd.concat([bid_vols[key].rename(bid_name),
-                        ask_vols[key].rename(ask_name),
-                        model_vols[key].rename(key)],
+    for bid_key, ask_key, model_key in zip(bid_vols.keys(), ask_vols.keys(), model_vols.keys()):
+        df = pd.concat([bid_vols[bid_key].rename(bid_name),
+                        ask_vols[ask_key].rename(ask_name),
+                        model_vols[model_key].rename(model_key)],
                        axis=1).sort_index().dropna()
-        clean_model_vols[key] = df[key]
-        lower_errors[key] = df[bid_name]
-        upper_errors[key] = df[ask_name]
+        clean_model_vols[model_key] = df[model_key]
+        lower_errors[model_key] = df[bid_name]
+        upper_errors[model_key] = df[ask_name]
     clean_model_vols_df = pd.DataFrame.from_dict(clean_model_vols, orient='columns')
-
 
     # add fitted vols line
     if len(model_vols.keys()) == 1:
@@ -69,23 +63,20 @@ def plot_vol_slice_fit_error_bar(bid_vols: Dict[str, pd.Series],  # should inclu
 
     lines = []  # for legend
     # add mids with error bars
-    for idx, key in enumerate(model_vols.keys()):
-        x = clean_model_vols[key].index.to_numpy()
-        mark = clean_model_vols[key].to_numpy()
-        lower_error = lower_errors[key].to_numpy()
-        upper_error = upper_errors[key].to_numpy()
+    for idx, (bid_key, ask_key, model_key) in enumerate(zip(bid_vols.keys(), ask_vols.keys(), model_vols.keys())):
+        x = clean_model_vols[model_key].index.to_numpy()
+        mark = clean_model_vols[model_key].to_numpy()
+        lower_error = lower_errors[model_key].to_numpy()
+        upper_error = upper_errors[model_key].to_numpy()
         ax.scatter(x, y=lower_error, marker="^", color=palette[idx], s=3, linewidth=1)
         ax.scatter(x, y=upper_error, marker="v", color=palette[idx], s=3, linewidth=1)
         ax.scatter(x, y=mark, marker="o", color=palette[idx], s=3, linewidth=1)
-
-        # add error line for valie errors
-        # valid_error = np.logical_and(mark >= lower_error, mark <= upper_error)
-        # error = sns.utils.ci_to_errsize((lower_error[valid_error], upper_error[valid_error]), mark[valid_error])
         mid = 0.5*(lower_error+upper_error)
         error = sns.utils.ci_to_errsize((lower_error, upper_error), mid)
         error = np.where(error>0.0, error, 0.0)
         ax.errorbar(x=x, y=mid, yerr=error, fmt='none', color=palette[idx], linewidth=1)
-        lines.append((key, {'color': palette[idx], 'linestyle': '', 'marker': 'o'}))
+        lines.append((model_key, {'color': palette[idx], 'linestyle': '-', 'marker': 'o'}))
+        lines.append((f"{bid_key} bid/ask", {'color': palette[idx], 'linestyle': '', 'marker': "^"}))
 
     # atm points
     if atm_points is not None:
@@ -98,7 +89,7 @@ def plot_vol_slice_fit_error_bar(bid_vols: Dict[str, pd.Series],  # should inclu
               loc='upper center',
               framealpha=0,
               fontsize=fontsize,
-              ncol=3)
+              ncol=2)
     qis.set_legend_colors(ax)
 
     if x_rotation != 0:
@@ -110,6 +101,7 @@ def plot_vol_slice_fit_error_bar(bid_vols: Dict[str, pd.Series],  # should inclu
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda z, _: yvar_format.format(z)))
 
     ax.set_ylabel(ylabel, fontsize=fontsize)
+    ax.set_xlabel(strike_name, fontsize=fontsize)
     if title is not None:
         ax.set_title(title, fontsize=fontsize, color='darkblue')
 
@@ -197,7 +189,7 @@ def plot_price_slice_fit(bid_price: pd.Series,
               [l[0] for l in lines],  # Line titles
               loc='upper center',
               framealpha=0,
-              fontsize=fontsize)
+              ncol=2)
     qis.set_legend_colors(ax)
 
     if x_rotation != 0:

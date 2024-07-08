@@ -47,12 +47,12 @@ class SliceFitOutputs:
             puts_ask_iv = puts_ask_iv[joint_strikes].dropna()
             puts_mark_iv = puts_mark_iv[joint_strikes].dropna()
 
-        bid_vols = {'call': calls_bid_iv,
-                    'put': puts_bid_iv}
-        ask_vols = {'call': calls_ask_iv,
-                    'put': puts_ask_iv}
-        model_vols = {'call': calls_mark_iv,
-                      'put': puts_mark_iv}
+        bid_vols = {'Calls': calls_bid_iv,
+                    'Puts': puts_bid_iv}
+        ask_vols = {'Calls': calls_ask_iv,
+                    'Puts': puts_ask_iv}
+        model_vols = {'Mark Calls': calls_mark_iv,
+                      'Mark Puts': puts_mark_iv}
         return bid_vols, ask_vols, model_vols
 
 
@@ -111,7 +111,9 @@ def plot_slice_fits(slice_df: pd.DataFrame,
                     expiry: str = None,
                     bounds: Optional[Tuple[float, float]] = (0.01, 0.95)
                     ) -> plt.Figure:
-
+    """
+    plot slice fit using SliceFitOutputs
+    """
     if bounds is not None:
         call_bounded_deltas = compute_bounded_delta_strikes(forward=slice_fit_outputs.forward,
                                                             ttm=slice_df[SliceColumn.TTM].iloc[0],
@@ -135,24 +137,27 @@ def plot_slice_fits(slice_df: pd.DataFrame,
     bid_vols, ask_vols, model_vols = slice_fit_outputs.get_vol_dicts(joint_strikes=joint_strikes)
     bid_price = slice_df[SliceColumn.BID_PRICE.value]
     ask_price = slice_df[SliceColumn.ASK_PRICE.value]
-    model_prices = pd.concat([slice_fit_outputs.call_mark_prices.rename('Calls'),
-                              slice_fit_outputs.put_mark_prices.rename('Puts')], axis=1)
+    model_prices = pd.concat([slice_fit_outputs.call_mark_prices.rename('Mark Calls'),
+                              slice_fit_outputs.put_mark_prices.rename('Mark Puts')], axis=1)
     if joint_strikes is not None:
-        bid_price = bid_price.loc[np.logical_and(bid_price.index>=joint_strikes[0], bid_price.index<=joint_strikes[-1])]
-        ask_price = ask_price.loc[np.logical_and(ask_price.index>=joint_strikes[0], ask_price.index<=joint_strikes[-1])]
-        model_prices = model_prices.loc[np.logical_and(model_prices.index>=joint_strikes[0], model_prices.index<=joint_strikes[-1]), :]
+        bid_price = bid_price.loc[np.logical_and(bid_price.index >= joint_strikes[0], bid_price.index <= joint_strikes[-1])]
+        ask_price = ask_price.loc[np.logical_and(ask_price.index >= joint_strikes[0], ask_price.index <= joint_strikes[-1])]
+        model_prices = model_prices.loc[np.logical_and(model_prices.index >= joint_strikes[0], model_prices.index <= joint_strikes[-1]), :]
 
     with sns.axes_style("darkgrid"):
-        fig, axs = plt.subplots(2, 2, figsize=(14, 7), tight_layout=True)
+        kwargs = dict(fontsize=12)
+        fig, axs = plt.subplots(2, 2, figsize=(16, 12), tight_layout=True)
         plot_price_slice_fit(bid_price=bid_price,
                              ask_price=ask_price,
                              model_prices=model_prices,
                              is_log=True,
-                             title='Prices',
-                             ax=axs[0, 0])
+                             title='Prices (log-scale)',
+                             ax=axs[0, 0],
+                             **kwargs)
         plot_vol_slice_fit_error_bar(bid_vols=bid_vols, ask_vols=ask_vols, model_vols=model_vols,
-                                     title='Volatilities',
-                                     ax=axs[1, 0])
+                                     title='Implied Volatilities',
+                                     ax=axs[1, 0],
+                                     **kwargs)
         # pdfs
         call_cpdf, call_pdf = compute_pdf_from_prices(option_prices=slice_fit_outputs.call_mark_prices, is_call=True)
         put_cpdf, put_pdf = compute_pdf_from_prices(option_prices=slice_fit_outputs.put_mark_prices, is_call=False)
@@ -166,10 +171,40 @@ def plot_slice_fits(slice_df: pd.DataFrame,
         qis.plot_line(df=pdfs, title='pdfs', ax=axs[1, 1])
 
         if expiry is not None:
-            title = f"{expiry}: forward={slice_fit_outputs.forward:0.2f}, discfactor={slice_fit_outputs.discfactor:0.2f}"
+            title = f"Inference of slice {expiry} with forward={slice_fit_outputs.forward:0.2f}"
         else:
             title = f"forward={slice_fit_outputs.forward:0.2f}, discfactor={slice_fit_outputs.discfactor:0.2f}"
 
         qis.set_suptitle(fig, title=title)
+
+    return fig
+
+
+def plot_price_spline_fits(mark_prices: pd.Series,
+                           spline_prices: pd.Series,
+                           expiry: str = None
+                           ) -> plt.Figure:
+    """
+    plot slice fit using spline_prices
+    """
+    mark_spline = pd.concat([mark_prices.rename('Mark'), spline_prices], axis=1).sort_index()
+
+    with sns.axes_style("darkgrid"):
+        kwargs = dict(fontsize=12)
+        fig, axs = plt.subplots(2, 2, figsize=(16, 12), tight_layout=True)
+        qis.plot_line(df=mark_spline,
+                      linestyles=['', '-'],
+                      markers=["o", ","],
+                      title='Prices (log-scale)',
+                      ax=axs[0, 0],
+                      **kwargs)
+        axs[0, 0].set_yscale('log')
+
+        # pdfs
+        call_cpdf, call_pdf = compute_pdf_from_prices(option_prices=spline_prices, is_call=True)
+        qis.plot_line(df=call_cpdf, title='cpdfs', ax=axs[0, 1])
+        qis.plot_line(df=call_pdf, title='pdfs', ax=axs[1, 1])
+
+        qis.set_suptitle(fig, title='fits')
 
     return fig
