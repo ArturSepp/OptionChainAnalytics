@@ -1,5 +1,6 @@
 
-from option_chain_analytics.config import compute_time_to_maturity
+from option_chain_analytics.config import (compute_time_to_maturity,
+                                           mat_to_timestamp)
 
 from option_chain_analytics.option_chain import (ExpirySlice,
                                                  SliceColumn,
