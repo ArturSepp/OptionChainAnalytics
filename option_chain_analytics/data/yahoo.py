@@ -115,7 +115,7 @@ def fetch_yahoo_options_live_data(ticker: str = 'SPY',
         discount_rate = - np.log(slice_fit_outputs.discfactor) / ttm
         if isinstance(discount_rate, np.ndarray):
             discount_rate = discount_rate[0]
-        option_df[SliceColumn.INTEREST_RATE.value] = discount_rate
+        option_df[SliceColumn.DISCOUNT.value] = slice_fit_outputs.discfactor
 
         option_df = option_df.rename({'openInterest': SliceColumn.OPEN_INTEREST.value,
                                       'volume': SliceColumn.VOLUME.value,

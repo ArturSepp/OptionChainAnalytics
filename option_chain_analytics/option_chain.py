@@ -53,7 +53,7 @@ class SliceColumn(str, Enum):
     EXPIRY = 'expiry'  # pd.Timestamp
     TTM = 'ttm'  # float
     CONTRACT_SIZE = 'contract_size'  # float
-    INTEREST_RATE = 'interest_rate'  # float
+    DISCOUNT = 'discount'  # float
 
 
 class UnderlyingColumn(str, Enum):

@@ -1,18 +1,5 @@
 """
 illustrations of using spline fitter
-
-# storing image path
-fname = r'g4g.png'
-
-# opening image using pil
-image = Image.open(fname).convert("L")
-
-# mapping image to gray scale
-plt.imshow(image, cmap='gray')
-plt.show()
-
-https://gist.github.com/davidwessman/d2d142fc593fde489d46
-
 """
 
 import pandas as pd
@@ -147,21 +134,6 @@ def run_unit_test(unit_test: UnitTests):
         fig = plot_slice_fits(slice_df=slice_df, slice_fit_outputs=slice_fit_outputs,
                               expiry=expiry,
                               bounds=(0.01, 0.95))
-        is_save = False
-        if is_save:
-            from PIL import Image
-            import matplotlib.cm as cm
-            file_path = qis.save_fig(fig, file_name='spx_slice_fit', file_type=qis.FileTypes.EPS,
-                                     dpi=3600, local_path=LOCAL_FIGURE_PATH)
-            #image = plt.imread(file_path)#.convert('L', palette=1).save(file_path)
-            #plt.imsave(file_path, image, dpi=3600, cmap=plt.cm.gray)
-            #image = Image.open(file_path).convert("L", colors=16*256)
-            #arr = np.asarray(image)
-            #plt.imshow(arr, cmap='gray', vmin=0, vmax=255)
-            #plt.savefig(file_path, arr, dpi=3*3600, cmap=plt.cm.gray)
-            #plt.savefig(f"{file_path}.pdf", arr, dpi=3*3600, cmap=plt.cm.gray)
-            #image.save(file_path, arr, dpi=3*3600, cmap=plt.cm.gray)
-            #image.save(f"{file_path}.pdf", arr, dpi=3*3600, cmap=plt.cm.gray)
 
     elif unit_test == UnitTests.REPORT_CHAIN_FITS:
         figs = report_chain_fits_with_qp_solver(chain_df=chain_df,
@@ -188,7 +160,7 @@ def run_unit_test(unit_test: UnitTests):
 
 if __name__ == '__main__':
 
-    unit_test = UnitTests.RUN_SLICE_FIT_FOR_BOOK_FIGURE
+    unit_test = UnitTests.INTERPOLATED_PRICE_GRID_SPLINE
 
     is_run_all_tests = False
     if is_run_all_tests:

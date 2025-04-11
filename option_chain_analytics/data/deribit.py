@@ -175,7 +175,7 @@ def parse_deribit_options_data(df: pd.DataFrame,
                                 option_df['option_type'].map({'call': 'C', 'put': 'P'}).rename(SliceColumn.OPTION_TYPE.value),
                                 option_df['expiry_time'].rename(SliceColumn.EXPIRY.value),
                                 option_df['ttm'].rename(SliceColumn.TTM.value),
-                                pd.Series(0.0, index=option_df.index, name=SliceColumn.INTEREST_RATE.value)
+                                pd.Series(1.0, index=option_df.index, name=SliceColumn.DISCOUNT.value)
                                 ], axis=1)
     new_options_df[SliceColumn.CONTRACT_SIZE.value] = 0.1 if ticker == 'BTC' else 1.0
     new_options_df = new_options_df.reset_index(drop=True)
