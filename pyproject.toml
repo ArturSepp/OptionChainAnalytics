@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "option_chain_analytics"
-version = "1.1.3"
+version = "1.1.4"
 description = "Implementation of data management and outputs queries for Option Chains"
 license = "LICENSE.txt"
 authors = ["Artur Sepp <artursepp@gmail.com>"]
