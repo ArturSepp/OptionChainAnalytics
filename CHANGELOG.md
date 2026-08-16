@@ -2,6 +2,21 @@
 
 All notable public changes to OptionChainAnalytics are recorded here.
 
+## 3.0.0 - 2026-08-16
+
+### Changed
+
+- Renamed the complete local SPX/VIX integration to CBOE terminology: the optional extra is now
+  `cboe`, the provider enum is `DataSource.CBOE_LOCAL`, and the loader and mapper are
+  `load_local_cboe_options_data` and `map_cboe_options_data`.
+- Local files now resolve under `cboe_options/`, normalized caches identify themselves as
+  `option_chain_analytics.cboe.normalized`, and source attributes use `cboe_options`.
+
+### Removed
+
+- Removed the pre-3.0 source-label API, extra, constants, cache identifier, and directory name.
+  Existing normalized SPX/VIX caches must be rebuilt once to receive the CBOE cache metadata.
+
 ## 2.0.1 - 2026-08-16
 
 ### Added
@@ -15,9 +30,9 @@ All notable public changes to OptionChainAnalytics are recorded here.
 
 - Restored support for Python 3.10 and newer, with CI across Python 3.10-3.14 and Python 3.10
   fallbacks in project and distribution metadata checks.
-- Vlad normalisation now always derives bid/ask implied volatilities from source row prices using
+- CBOE normalisation now always derives bid/ask implied volatilities from source row prices using
   the contemporaneous forward, discount factor, and time to maturity.
-- `load_local_vlad_options_data` now prefers validated per-underlying Parquet caches while retaining
+- `load_local_cboe_options_data` now prefers validated per-underlying Parquet caches while retaining
   source parsing as the fallback and supporting filtered point-in-time loads.
 - Point-in-time reconstruction now supports an explicit `previous` observation policy that can
   only select data at or before the requested timestamp; exact selection remains the default.
@@ -36,7 +51,7 @@ All notable public changes to OptionChainAnalytics are recorded here.
 - `generate_simulated_options_data`, a deterministic offline `OptionsDataDFs` fixture for tests,
   examples, and documentation.
 - A release-gating `examples/first_success.py` workflow and task-oriented Sphinx documentation.
-- SPX/VIX Vlad fitted-chain mapping to the native option-panel schema.
+- SPX/VIX CBOE fitted-chain mapping to the native option-panel schema.
 
 ### Changed
 

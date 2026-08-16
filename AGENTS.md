@@ -71,7 +71,7 @@ python -m build
 python tools/verify_distribution.py dist
 ```
 
-Install `.[vlad]` for Feather/Parquet CBOE data, or the relevant provider extra (`deribit`,
+Install `.[cboe]` for Feather/Parquet CBOE data, or the relevant provider extra (`deribit`,
 `yahoo`, `ccxt`, `bloomberg`, `fitters`). Supported Python is >= 3.10; CI runs tests and lint on
 Python 3.10–3.14. CI also builds the documentation and verifies both wheel and source distribution.
 
@@ -104,10 +104,10 @@ Python 3.10–3.14. CI also builds the documentation and verifies both wheel and
 - Never use a full-sample statistic, backward fill, nearest-neighbour selection, or an end-of-day
   value that was unavailable at the requested time inside a point-in-time path.
 
-## CBOE/Vlad data and cache contract
+## CBOE data and cache contract
 
-- `load_local_vlad_options_data` is the source-specific adapter for the local SPX/VIX fitted-chain
-  files. The historical loader name is retained for compatibility.
+- `load_local_cboe_options_data` is the source-specific adapter for the local SPX/VIX fitted-chain
+  files.
 - Bid/ask IV is always inferred from each row's bid/ask price using its contemporaneous forward,
   discount factor, and time to maturity. There is no switch that permits partially normalized
   CBOE data.
@@ -126,10 +126,10 @@ Python 3.10–3.14. CI also builds the documentation and verifies both wheel and
 ## Paths and data licensing
 
 `OCA_DATA_PATH` points to the local data root containing provider subdirectories such as
-`vlad_vols/`; `OCA_OUTPUT_PATH` points to generated output. With no override, a source checkout
+`cboe_options/`; `OCA_OUTPUT_PATH` points to generated output. With no override, a source checkout
 uses ignored root `data/` and `outputs/` directories. Do not introduce absolute machine paths.
 
-- Never commit vendor data, CBOE/Vlad source files, normalized caches, credentials, database
+- Never commit vendor data, CBOE source files, normalized caches, credentials, database
   dumps, calibration output, or generated figures.
 - Public tests, examples, and visualisations use `generate_simulated_options_data` unless a
   dataset's redistribution terms have been reviewed and recorded.
@@ -249,9 +249,9 @@ maintainer explicitly asking for a release.
 
 - `create_chain_from_from_options_dfs` contains a historical doubled `from` in its public name.
   Preserve it unless a separately approved deprecation/migration introduces a corrected alias.
-- `load_local_vlad_options_data` retains the source-specific historical name while the normalized
-  public cache builder is `build_local_cboe_options_cache`.
-- The CBOE cache path requires the `vlad` extra (`pyarrow`); cache round-trip tests skip when that
+- The CBOE loader and normalized public cache builder are `load_local_cboe_options_data` and
+  `build_local_cboe_options_cache`.
+- The CBOE cache path requires the `cboe` extra (`pyarrow`); cache round-trip tests skip when that
   optional dependency is absent from the test environment.
 - Bloomberg BVOL data is a volatility surface input, not yet an OCA option-chain source; synthetic
   prices and maturity rolling remain deliberately unimplemented.

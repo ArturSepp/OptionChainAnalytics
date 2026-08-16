@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "option-chain-analytics"
-version = "2.0.1"
+version = "3.0.0"
 description = "Point-in-time option-chain containers, feed normalisation, reconstruction, and queries for quantitative research"
 readme = "README.md"
 license = "MIT"
@@ -54,7 +54,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-vlad = [
+cboe = [
     "pyarrow>=14.0.0",
 ]
 deribit = [

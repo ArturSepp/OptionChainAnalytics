@@ -4,19 +4,19 @@ OCA normalises feeds but does not grant data rights. Empirical datasets remain o
 repository until their redistribution terms are reviewed.
 
 Install only the integration required by the study, for example
-`pip install "option-chain-analytics[vlad]"`. The available extras are `vlad`, `deribit`, `yahoo`,
+`pip install "option-chain-analytics[cboe]"`. The available extras are `cboe`, `deribit`, `yahoo`,
 `ccxt`, `bloomberg`, and `fitters`; `all` installs every optional integration.
 
 | Source path | Underlyings / local coverage | Current OCA status | Public replication use |
 |---|---|---|---|
 | Deterministic simulation | `SYNTH`; two observations and three expiries | Supported and release-gating | Yes; generated locally, no download. |
-| Vlad fitted chains | SPX: 2015-01-02–2023-11-08; VIX: 2015-01-02–2024-05-31 | `load_local_vlad_options_data` maps to `OptionsDataDFs` inputs | No files distributed; users must provide lawful local access. |
+| CBOE fitted chains | SPX: 2015-01-02–2023-11-08; VIX: 2015-01-02–2024-05-31 | `load_local_cboe_options_data` maps to `OptionsDataDFs` inputs | No files distributed; users must provide lawful local access. |
 | Tardis hourly chains | BTC/ETH: 2019-03-30–2024-05-06 UTC on the maintainer's local archive | Supported by `DataSource.TARDIS_LOCAL` when required local companion series exist | No files distributed; provider terms apply. |
 | Deribit snapshots | BTC/ETH: 2023-10-27–2024-02-13 UTC on the maintainer's local archive | Supported by `DataSource.DERIBIT_LOCAL`; live retrieval is provider-specific | Historical archive not distributed. |
 | Yahoo snapshots | Several equity/ETF names; local aggregate snapshots around 2024-06-20 | Loader exists; an aligned independent spot output is incomplete | Suitable for demonstrations only after documenting retrieval time and alignment. |
 | Bloomberg BVOL | SPX daily volatility surfaces: 2005-01-03–2024-06-17 locally | Input exists; option-price mapping and maturity rolling are TODO | Bloomberg access required; synthetic output must be labelled, not represented as observed prices. |
 
-## Vlad conventions
+## CBOE conventions
 
 The mapper interprets source `date` as 16:00 New York time and `exdate` as 16:15 New York time,
 then stores timezone-aware timestamps. Source `dte`, `impl_fw`, `impl_df`, and `mid_vols` become

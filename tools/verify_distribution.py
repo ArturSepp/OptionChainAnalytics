@@ -58,7 +58,7 @@ def verify_distribution(dist_dir: Path) -> None:
         if metadata['License-Expression'] != 'MIT':
             raise AssertionError(f"unexpected license expression: {metadata['License-Expression']}")
         extras = set(metadata.get_all('Provides-Extra', []))
-        expected_extras = {'all', 'bloomberg', 'ccxt', 'deribit', 'dev', 'docs', 'fitters', 'vlad', 'yahoo'}
+        expected_extras = {'all', 'bloomberg', 'cboe', 'ccxt', 'deribit', 'dev', 'docs', 'fitters', 'yahoo'}
         if extras != expected_extras:
             raise AssertionError(f'unexpected optional extras: {extras}')
 

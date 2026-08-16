@@ -20,14 +20,14 @@ from option_chain_analytics.option_chain import SliceColumn
 
 DERIBIT_LOCAL_PATH = f"{lp.get_resource_path()}\\deribit\\"
 TARDIS_FILES_LOCAL_PATH = f"{lp.get_resource_path()}tardis\\"
-VLAD_FILES_LOCAL_PATH = f"{lp.get_resource_path()}vlad_vols\\"
+CBOE_FILES_LOCAL_PATH = f"{lp.get_resource_path()}cboe_options\\"
 
-VLAD_CACHE_FORMAT = 'option_chain_analytics.vlad.normalized'
-VLAD_CACHE_SCHEMA_VERSION = '1'
-VLAD_SOURCE_FILE_NAMES = {'SPX': 'spx_options.feather', 'VIX': 'vix_options.feather'}
-VLAD_CACHE_FILE_NAMES = {'SPX': 'spx_options_oca.parquet', 'VIX': 'vix_options_oca.parquet'}
+CBOE_CACHE_FORMAT = 'option_chain_analytics.cboe.normalized'
+CBOE_CACHE_SCHEMA_VERSION = '1'
+CBOE_SOURCE_FILE_NAMES = {'SPX': 'spx_options.feather', 'VIX': 'vix_options.feather'}
+CBOE_CACHE_FILE_NAMES = {'SPX': 'spx_options_oca.parquet', 'VIX': 'vix_options_oca.parquet'}
 
-VLAD_SOURCE_COLUMNS = (
+CBOE_SOURCE_COLUMNS = (
     'exdate',
     'strike_price',
     'cp_flag',
@@ -50,7 +50,7 @@ VLAD_SOURCE_COLUMNS = (
 class DataSource(Enum):
     TARDIS_LOCAL = 1
     DERIBIT_LOCAL = 2
-    VLAD_LOCAL = 3
+    CBOE_LOCAL = 3
 
 
 def ts_data_loader_wrapper(data_source: DataSource = DataSource.TARDIS_LOCAL,
@@ -66,8 +66,8 @@ def ts_data_loader_wrapper(data_source: DataSource = DataSource.TARDIS_LOCAL,
     elif data_source == DataSource.DERIBIT_LOCAL:
         return load_local_deribit_contract_ts_data(ticker=ticker, **kwargs)
 
-    elif data_source == DataSource.VLAD_LOCAL:
-        return load_local_vlad_options_data(ticker=ticker, **kwargs)
+    elif data_source == DataSource.CBOE_LOCAL:
+        return load_local_cboe_options_data(ticker=ticker, **kwargs)
 
     else:
         raise NotImplementedError(f"{data_source}")
@@ -119,23 +119,23 @@ def _to_new_york_naive(timestamp: Optional[pd.Timestamp], is_end: bool = False) 
     return timestamp
 
 
-def _load_vlad_source_frame(file_path: Path,
+def _load_cboe_source_frame(file_path: Path,
                             start: Optional[pd.Timestamp] = None,
                             end: Optional[pd.Timestamp] = None
                             ) -> pd.DataFrame:
     start = _to_new_york_naive(start)
     end = _to_new_york_naive(end, is_end=True)
     if start is None and end is None:
-        return pd.read_feather(file_path, columns=list(VLAD_SOURCE_COLUMNS))
+        return pd.read_feather(file_path, columns=list(CBOE_SOURCE_COLUMNS))
 
     import pyarrow as pa
     import pyarrow.ipc as ipc
 
     reader = ipc.RecordBatchFileReader(pa.memory_map(str(file_path), 'r'))
-    missing = set(VLAD_SOURCE_COLUMNS).difference(reader.schema.names)
+    missing = set(CBOE_SOURCE_COLUMNS).difference(reader.schema.names)
     if missing:
-        raise ValueError(f"missing vlad_vols columns: {sorted(missing)}")
-    column_indices = [reader.schema.get_field_index(column) for column in VLAD_SOURCE_COLUMNS]
+        raise ValueError(f"missing CBOE option columns: {sorted(missing)}")
+    column_indices = [reader.schema.get_field_index(column) for column in CBOE_SOURCE_COLUMNS]
     frames = []
     for batch_idx in range(reader.num_record_batches):
         frame = reader.get_batch(batch_idx).select(column_indices).to_pandas()
@@ -146,22 +146,22 @@ def _load_vlad_source_frame(file_path: Path,
         if not frame.empty:
             frames.append(frame)
     if not frames:
-        return pd.DataFrame(columns=VLAD_SOURCE_COLUMNS)
+        return pd.DataFrame(columns=CBOE_SOURCE_COLUMNS)
     return pd.concat(frames, axis=0, ignore_index=True)
 
 
-def _vlad_file_path(ticker: str, local_path: str, file_names: Dict[str, str]) -> Path:
+def _cboe_file_path(ticker: str, local_path: str, file_names: Dict[str, str]) -> Path:
     ticker = ticker.upper()
     if ticker not in file_names:
-        raise ValueError(f"unsupported vlad_vols ticker={ticker}")
+        raise ValueError(f"unsupported CBOE option ticker={ticker}")
     return Path(local_path).joinpath(file_names[ticker])
 
 
-def _vlad_cache_metadata(ticker: str, source_path: Path) -> Dict[bytes, bytes]:
+def _cboe_cache_metadata(ticker: str, source_path: Path) -> Dict[bytes, bytes]:
     source_stat = source_path.stat()
     values = {
-        'oca_cache_format': VLAD_CACHE_FORMAT,
-        'oca_cache_schema_version': VLAD_CACHE_SCHEMA_VERSION,
+        'oca_cache_format': CBOE_CACHE_FORMAT,
+        'oca_cache_schema_version': CBOE_CACHE_SCHEMA_VERSION,
         'oca_ticker': ticker,
         'oca_source_file': source_path.name,
         'oca_source_size': str(source_stat.st_size),
@@ -171,18 +171,18 @@ def _vlad_cache_metadata(ticker: str, source_path: Path) -> Dict[bytes, bytes]:
     return {key.encode(): value.encode() for key, value in values.items()}
 
 
-def _read_vlad_cache_metadata(cache_path: Path) -> Dict[str, str]:
+def _read_cboe_cache_metadata(cache_path: Path) -> Dict[str, str]:
     import pyarrow.parquet as pq
 
     raw_metadata = pq.ParquetFile(cache_path).metadata.metadata or {}
     return {key.decode(): value.decode() for key, value in raw_metadata.items() if key.startswith(b'oca_')}
 
 
-def _validate_vlad_cache(cache_path: Path, ticker: str, source_path: Path) -> None:
-    metadata = _read_vlad_cache_metadata(cache_path=cache_path)
+def _validate_cboe_cache(cache_path: Path, ticker: str, source_path: Path) -> None:
+    metadata = _read_cboe_cache_metadata(cache_path=cache_path)
     expected = {
-        'oca_cache_format': VLAD_CACHE_FORMAT,
-        'oca_cache_schema_version': VLAD_CACHE_SCHEMA_VERSION,
+        'oca_cache_format': CBOE_CACHE_FORMAT,
+        'oca_cache_schema_version': CBOE_CACHE_SCHEMA_VERSION,
         'oca_ticker': ticker,
     }
     mismatches = {
@@ -210,30 +210,30 @@ def _validate_vlad_cache(cache_path: Path, ticker: str, source_path: Path) -> No
             for key, (actual, expected_value) in mismatches.items()
         )
         raise ValueError(
-            f"incompatible or stale Vlad cache {cache_path}: {details}. "
+            f"incompatible or stale CBOE cache {cache_path}: {details}. "
             "Rebuild it with build_local_cboe_options_cache(..., overwrite=True), "
             "or pass is_use_cache=False."
         )
 
 
-def _to_vlad_cache_utc(timestamp: Optional[pd.Timestamp], is_end: bool = False) -> Optional[pd.Timestamp]:
+def _to_cboe_cache_utc(timestamp: Optional[pd.Timestamp], is_end: bool = False) -> Optional[pd.Timestamp]:
     timestamp = _to_new_york_naive(timestamp=timestamp, is_end=is_end)
     if timestamp is None:
         return None
     return timestamp.tz_localize('America/New_York').tz_convert('UTC')
 
 
-def _load_vlad_cache_frame(cache_path: Path,
+def _load_cboe_cache_frame(cache_path: Path,
                            ticker: str,
                            source_path: Path,
                            start: Optional[pd.Timestamp] = None,
                            end: Optional[pd.Timestamp] = None
                            ) -> pd.DataFrame:
-    _validate_vlad_cache(cache_path=cache_path, ticker=ticker, source_path=source_path)
+    _validate_cboe_cache(cache_path=cache_path, ticker=ticker, source_path=source_path)
     filters = []
     exchange_time = SliceColumn.EXCHANGE_TIME.value
-    start_utc = _to_vlad_cache_utc(timestamp=start)
-    end_utc = _to_vlad_cache_utc(timestamp=end, is_end=True)
+    start_utc = _to_cboe_cache_utc(timestamp=start)
+    end_utc = _to_cboe_cache_utc(timestamp=end, is_end=True)
     if start_utc is not None:
         filters.append((exchange_time, '>=', start_utc))
     if end_utc is not None:
@@ -292,7 +292,7 @@ def _prepare_spot_data(chain_ts: pd.DataFrame,
     return spot_data
 
 
-def _compute_vlad_bid_ask_iv(chain_ts: pd.DataFrame) -> None:
+def _compute_cboe_bid_ask_iv(chain_ts: pd.DataFrame) -> None:
     import vanilla_option_pricers as bsm
     from numba.typed import List
 
@@ -343,7 +343,7 @@ def _compute_vlad_bid_ask_iv(chain_ts: pd.DataFrame) -> None:
     chain_ts[SliceColumn.ASK_IV.value] = ask_iv
 
 
-def _finalize_vlad_options_data(chain_ts: pd.DataFrame,
+def _finalize_cboe_options_data(chain_ts: pd.DataFrame,
                                 ticker: str,
                                 spot_data: Optional[Union[pd.Series, pd.DataFrame]],
                                 is_use_front_forward_as_spot: bool
@@ -355,17 +355,17 @@ def _finalize_vlad_options_data(chain_ts: pd.DataFrame,
     )
     chain_ts[SliceColumn.SPOT_PRICE.value] = chain_ts[SliceColumn.EXCHANGE_TIME.value].map(spot_data['close'])
     chain_ts = chain_ts[[column.value for column in SliceColumn]]
-    chain_ts.attrs['source'] = 'vlad_vols'
+    chain_ts.attrs['source'] = 'cboe_options'
     chain_ts.attrs['spot_source'] = spot_data.attrs['spot_source']
     return dict(chain_ts=chain_ts, spot_data=spot_data, ticker=ticker)
 
 
-def map_vlad_options_data(source: pd.DataFrame,
+def map_cboe_options_data(source: pd.DataFrame,
                           ticker: Union[str, Literal['SPX', 'VIX']] = 'SPX',
                           spot_data: Optional[Union[pd.Series, pd.DataFrame]] = None,
                           is_use_front_forward_as_spot: bool = False
                           ) -> Dict[str, Any]:
-    """Map a vlad_vols SPX/VIX table to the ``OptionsDataDFs`` constructor format.
+    """Map a local CBOE SPX/VIX table to the ``OptionsDataDFs`` constructor format.
 
     Source observations are treated as 16:00 New York time and expiries as
     16:15 New York time, matching the source ``dte`` convention. The source
@@ -375,12 +375,12 @@ def map_vlad_options_data(source: pd.DataFrame,
     """
     ticker = ticker.upper()
     if ticker not in ('SPX', 'VIX'):
-        raise ValueError(f"unsupported vlad_vols ticker={ticker}")
-    missing = set(VLAD_SOURCE_COLUMNS).difference(source.columns)
+        raise ValueError(f"unsupported CBOE option ticker={ticker}")
+    missing = set(CBOE_SOURCE_COLUMNS).difference(source.columns)
     if missing:
-        raise ValueError(f"missing vlad_vols columns: {sorted(missing)}")
+        raise ValueError(f"missing CBOE option columns: {sorted(missing)}")
 
-    source = source.loc[:, list(VLAD_SOURCE_COLUMNS)].copy()
+    source = source.loc[:, list(CBOE_SOURCE_COLUMNS)].copy()
     exchange_time = _to_utc_from_new_york(source['date'])
     expiry_local = pd.to_datetime(source['exdate']).dt.normalize() + pd.Timedelta(hours=16, minutes=15)
     expiry = _to_utc_from_new_york(expiry_local)
@@ -427,8 +427,8 @@ def map_vlad_options_data(source: pd.DataFrame,
         subset=[SliceColumn.EXCHANGE_TIME.value, SliceColumn.CONTRACT.value],
         keep='last',
     ).reset_index(drop=True)
-    _compute_vlad_bid_ask_iv(chain_ts)
-    return _finalize_vlad_options_data(
+    _compute_cboe_bid_ask_iv(chain_ts)
+    return _finalize_cboe_options_data(
         chain_ts=chain_ts,
         ticker=ticker,
         spot_data=spot_data,
@@ -437,21 +437,21 @@ def map_vlad_options_data(source: pd.DataFrame,
 
 
 def build_local_cboe_options_cache(ticker: Union[str, Literal['SPX', 'VIX']] = 'SPX',
-                                   local_path: str = VLAD_FILES_LOCAL_PATH,
+                                   local_path: str = CBOE_FILES_LOCAL_PATH,
                                    overwrite: bool = False
                                    ) -> Path:
-    """Build one normalized, compressed Parquet cache for a Vlad underlying.
+    """Build one normalized, compressed Parquet cache for a CBOE underlying.
 
     The source Feather file is processed one record batch at a time, so building
     the 21-million-row SPX cache does not require holding the complete normalized
     chain in memory. Cache metadata records the OCA schema version and source-file
-    fingerprint; ``load_local_vlad_options_data`` rejects a stale cache.
+    fingerprint; ``load_local_cboe_options_data`` rejects a stale cache.
 
     Parameters
     ----------
     ticker : {'SPX', 'VIX'}, default 'SPX'
-        Vlad underlying to normalize.
-    local_path : str, default ``VLAD_FILES_LOCAL_PATH``
+        CBOE underlying to normalize.
+    local_path : str, default ``CBOE_FILES_LOCAL_PATH``
         Directory containing both source files and normalized caches.
     overwrite : bool, default False
         Replace an existing cache atomically when True.
@@ -468,29 +468,29 @@ def build_local_cboe_options_cache(ticker: Union[str, Literal['SPX', 'VIX']] = '
     import pyarrow.parquet as pq
 
     ticker = ticker.upper()
-    source_path = _vlad_file_path(ticker=ticker, local_path=local_path, file_names=VLAD_SOURCE_FILE_NAMES)
-    cache_path = _vlad_file_path(ticker=ticker, local_path=local_path, file_names=VLAD_CACHE_FILE_NAMES)
+    source_path = _cboe_file_path(ticker=ticker, local_path=local_path, file_names=CBOE_SOURCE_FILE_NAMES)
+    cache_path = _cboe_file_path(ticker=ticker, local_path=local_path, file_names=CBOE_CACHE_FILE_NAMES)
     if cache_path.exists() and not overwrite:
-        raise FileExistsError(f"Vlad cache already exists: {cache_path}")
+        raise FileExistsError(f"CBOE cache already exists: {cache_path}")
     if not source_path.exists():
-        raise FileNotFoundError(f"Vlad source file does not exist: {source_path}")
+        raise FileNotFoundError(f"CBOE source file does not exist: {source_path}")
 
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     temporary_path = cache_path.with_name(f".{cache_path.name}.{uuid4().hex}.tmp")
 
     source_reader = ipc.RecordBatchFileReader(pa.memory_map(str(source_path), 'r'))
-    missing = set(VLAD_SOURCE_COLUMNS).difference(source_reader.schema.names)
+    missing = set(CBOE_SOURCE_COLUMNS).difference(source_reader.schema.names)
     if missing:
-        raise ValueError(f"missing vlad_vols columns: {sorted(missing)}")
-    column_indices = [source_reader.schema.get_field_index(column) for column in VLAD_SOURCE_COLUMNS]
-    cache_metadata = _vlad_cache_metadata(ticker=ticker, source_path=source_path)
+        raise ValueError(f"missing CBOE option columns: {sorted(missing)}")
+    column_indices = [source_reader.schema.get_field_index(column) for column in CBOE_SOURCE_COLUMNS]
+    cache_metadata = _cboe_cache_metadata(ticker=ticker, source_path=source_path)
     writer = None
     try:
         for batch_idx in range(source_reader.num_record_batches):
             source = source_reader.get_batch(batch_idx).select(column_indices).to_pandas()
             if source.empty:
                 continue
-            chain_ts = map_vlad_options_data(source=source, ticker=ticker)['chain_ts']
+            chain_ts = map_cboe_options_data(source=source, ticker=ticker)['chain_ts']
             table = pa.Table.from_pandas(chain_ts, preserve_index=False)
             table = table.replace_schema_metadata({**(table.schema.metadata or {}), **cache_metadata})
             if writer is None:
@@ -507,7 +507,7 @@ def build_local_cboe_options_cache(ticker: Union[str, Literal['SPX', 'VIX']] = '
                 )
             writer.write_table(table, row_group_size=250_000)
         if writer is None:
-            raise ValueError(f"Vlad source file contains no rows: {source_path}")
+            raise ValueError(f"CBOE source file contains no rows: {source_path}")
         writer.close()
         writer = None
         temporary_path.replace(cache_path)
@@ -520,44 +520,44 @@ def build_local_cboe_options_cache(ticker: Union[str, Literal['SPX', 'VIX']] = '
 
 
 @qis.timer
-def load_local_vlad_options_data(ticker: Union[str, Literal['SPX', 'VIX']] = 'SPX',
-                                 local_path: str = VLAD_FILES_LOCAL_PATH,
+def load_local_cboe_options_data(ticker: Union[str, Literal['SPX', 'VIX']] = 'SPX',
+                                 local_path: str = CBOE_FILES_LOCAL_PATH,
                                  start: Optional[pd.Timestamp] = None,
                                  end: Optional[pd.Timestamp] = None,
                                  spot_data: Optional[Union[pd.Series, pd.DataFrame]] = None,
                                  is_use_front_forward_as_spot: bool = False,
                                  is_use_cache: bool = True
                                  ) -> Dict[str, Any]:
-    """Load local SPX/VIX Vlad data in ``OptionsDataDFs`` format.
+    """Load local SPX/VIX CBOE data in ``OptionsDataDFs`` format.
 
     A validated normalized Parquet cache is preferred when present. If there is
     no cache, the source Feather file is parsed and normalized as before. Set
     ``is_use_cache=False`` to bypass an existing cache explicitly.
     """
     ticker = ticker.upper()
-    source_path = _vlad_file_path(ticker=ticker, local_path=local_path, file_names=VLAD_SOURCE_FILE_NAMES)
-    cache_path = _vlad_file_path(ticker=ticker, local_path=local_path, file_names=VLAD_CACHE_FILE_NAMES)
+    source_path = _cboe_file_path(ticker=ticker, local_path=local_path, file_names=CBOE_SOURCE_FILE_NAMES)
+    cache_path = _cboe_file_path(ticker=ticker, local_path=local_path, file_names=CBOE_CACHE_FILE_NAMES)
     if is_use_cache and cache_path.exists():
-        chain_ts = _load_vlad_cache_frame(
+        chain_ts = _load_cboe_cache_frame(
             cache_path=cache_path,
             ticker=ticker,
             source_path=source_path,
             start=start,
             end=end,
         )
-        return _finalize_vlad_options_data(
+        return _finalize_cboe_options_data(
             chain_ts=chain_ts,
             ticker=ticker,
             spot_data=spot_data,
             is_use_front_forward_as_spot=is_use_front_forward_as_spot,
         )
 
-    source = _load_vlad_source_frame(
+    source = _load_cboe_source_frame(
         file_path=source_path,
         start=start,
         end=end,
     )
-    return map_vlad_options_data(
+    return map_cboe_options_data(
         source=source,
         ticker=ticker,
         spot_data=spot_data,

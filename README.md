@@ -28,7 +28,7 @@ Provider-specific integrations are optional:
 
 | Extra | Capability |
 |---|---|
-| `vlad` | Local Arrow/Feather Vlad fitted-chain files |
+| `cboe` | Local Arrow/Feather CBOE fitted-chain files |
 | `deribit` | Deribit HTTP collection helpers |
 | `yahoo` | Yahoo snapshots and the fitter used by that adapter |
 | `ccxt` | CCXT market-data integration |
@@ -36,7 +36,7 @@ Provider-specific integrations are optional:
 | `fitters` | CVXPY-based quote fitting |
 | `docs`, `dev`, `all` | Documentation, contributor tooling, or every optional integration |
 
-For example, `pip install "option-chain-analytics[vlad]"` installs the Vlad file dependency without
+For example, `pip install "option-chain-analytics[cboe]"` installs the CBOE file dependency without
 installing unrelated network providers.
 
 ## First success: no data or credentials
@@ -80,16 +80,16 @@ preserve and document its price/multiplier convention.
 
 ## Empirical feeds
 
-Local adapters cover Deribit/Tardis crypto histories and SPX/VIX Vlad fitted-chain files. These
+Local adapters cover Deribit/Tardis crypto histories and SPX/VIX CBOE fitted-chain files. These
 datasets are not distributed. Set `OCA_DATA_PATH` to an ignored local data root; generated output
-uses `OCA_OUTPUT_PATH`. Vlad files can be mapped with:
+uses `OCA_OUTPUT_PATH`. CBOE files can be mapped with:
 
 ```python
 from option_chain_analytics import OptionsDataDFs
-from option_chain_analytics.ts_loaders import load_local_vlad_options_data
+from option_chain_analytics.ts_loaders import load_local_cboe_options_data
 
 options_data = OptionsDataDFs(
-    **load_local_vlad_options_data(
+    **load_local_cboe_options_data(
         ticker='SPX',
         start='2023-01-03',
         end='2023-01-03',
@@ -97,12 +97,12 @@ options_data = OptionsDataDFs(
 )
 ```
 
-The Vlad mapper always infers bid/ask implied volatilities from the source bid/ask prices using
-the contemporaneous forward, discount factor, and time to maturity. This keeps every Vlad-backed
+The CBOE mapper always infers bid/ask implied volatilities from the source bid/ask prices using
+the contemporaneous forward, discount factor, and time to maturity. This keeps every CBOE-backed
 `OptionsDataDFs` instance on the same complete schema.
 
 For repeated empirical studies, build one normalized Parquet cache per underlying after installing
-the `vlad` extra:
+the `cboe` extra:
 
 ```python
 from option_chain_analytics.ts_loaders import build_local_cboe_options_cache
@@ -111,12 +111,12 @@ build_local_cboe_options_cache(ticker='SPX')
 build_local_cboe_options_cache(ticker='VIX')
 ```
 
-This creates ignored `vlad_vols/spx_options_oca.parquet` and
-`vlad_vols/vix_options_oca.parquet` files. The normal loader uses a valid cache automatically and
+This creates ignored `cboe_options/spx_options_oca.parquet` and
+`cboe_options/vix_options_oca.parquet` files. The normal loader uses a valid cache automatically and
 still accepts `start`/`end` filters. OCA embeds its cache schema and source-file fingerprint in each
 Parquet file and rejects stale caches. Use `overwrite=True` to rebuild deliberately.
 
-Vlad data supplies implied forwards but no independent spot series. Pass `spot_data`, or use
+CBOE data supplies implied forwards but no independent spot series. Pass `spot_data`, or use
 `is_use_front_forward_as_spot=True` only for visualisation; a forward proxy is not a valid spot
 return series for backtesting.
 
