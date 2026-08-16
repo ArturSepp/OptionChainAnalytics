@@ -1,51 +1,133 @@
-[tool.poetry]
-name = "option_chain_analytics"
-version = "1.1.4"
-description = "Implementation of data management and outputs queries for Option Chains"
-license = "LICENSE.txt"
-authors = ["Artur Sepp <artursepp@gmail.com>"]
-maintainers = ["Artur Sepp <artursepp@gmail.com>"]
-readme = "README.md"
-repository = "https://github.com/ArturSepp/OptionChainAnalytics"
-documentation = "https://github.com/ArturSepp/OptionChainAnalytics"
-keywords= ["options chain", "implied volatility", "volatility surface", "volatility fitting", "options data"]
-classifiers=[
-        "Development Status :: 4 - Beta",
-        "Environment :: Console",
-        "Intended Audience :: Financial and Insurance Industry",
-        "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: MIT License",
-        "Natural Language :: English",
-        "Operating System :: OS Independent",
-        "Programming Language :: Python :: 3.10",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3 :: Only",
-        "Topic :: Office/Business :: Financial :: Investment",
-    ]
-packages = [ {include = "option_chain_analytics"}]
-
-[tool.poetry.urls]
-"Issues" = "https://github.com/ArturSepp/OptionChainAnalytics/issues"
-"Personal website" = "https://artursepp.com"
-
-[tool.poetry.dependencies]
-python = ">=3.8"
-numba = ">=0.56.4"
-numpy = ">=1.22.4"
-scipy = ">=1.10"
-pandas = ">=1.5.2"
-matplotlib = ">=3.2.2"
-seaborn = ">=0.12.2"
-openpyxl = ">=3.0.10"
-PyYAML = ">=6.0"
-easydev = ">=0.12.0"
-psycopg2 = ">=2.9.5"
-pyarrow = ">=10.0.1"
-fsspec = ">=2022.11.0"
-tqdm = ">=4.64.1"
-yfinance = ">0.1.38"
-qis = ">=1.0.30"
-
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=77.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "option-chain-analytics"
+version = "2.0.0"
+description = "Point-in-time option-chain containers, feed normalisation, reconstruction, and queries for quantitative research"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    {name = "Artur Sepp", email = "artursepp@gmail.com"},
+]
+maintainers = [
+    {name = "Artur Sepp", email = "artursepp@gmail.com"},
+]
+requires-python = ">=3.14"
+keywords = [
+    "option chains",
+    "options data",
+    "implied volatility",
+    "volatility surface",
+    "quantitative finance",
+    "point-in-time data",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Intended Audience :: Science/Research",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "matplotlib>=3.8.0",
+    "numba>=0.63.0",
+    "numpy>=2.0",
+    "pandas>=2.2.0",
+    "qis>=5.11.0",
+    "scipy>=1.12.0",
+    "seaborn>=0.13.0",
+    "vanilla-option-pricers>=1.3.0",
+]
+
+[project.optional-dependencies]
+vlad = [
+    "pyarrow>=14.0.0",
+]
+deribit = [
+    "requests>=2.31.0",
+    "tqdm>=4.66.0",
+]
+yahoo = [
+    "cvxpy>=1.4.0",
+    "yfinance>=0.2.40",
+]
+ccxt = [
+    "ccxt>=4.0.0",
+]
+bloomberg = [
+    "bbg-fetch>=2.3.0",
+]
+fitters = [
+    "cvxpy>=1.4.0",
+]
+docs = [
+    "furo>=2024.8.6",
+    "myst-parser>=4.0",
+    "sphinx>=8.0",
+]
+dev = [
+    "build>=1.2.0",
+    "pytest>=8.0.0",
+    "ruff>=0.9.0",
+]
+all = [
+    "bbg-fetch>=2.3.0",
+    "ccxt>=4.0.0",
+    "cvxpy>=1.4.0",
+    "furo>=2024.8.6",
+    "myst-parser>=4.0",
+    "pyarrow>=14.0.0",
+    "requests>=2.31.0",
+    "sphinx>=8.0",
+    "tqdm>=4.66.0",
+    "yfinance>=0.2.40",
+]
+
+[project.urls]
+Homepage = "https://github.com/ArturSepp/OptionChainAnalytics"
+Documentation = "https://artursepp.github.io/OptionChainAnalytics/"
+Repository = "https://github.com/ArturSepp/OptionChainAnalytics.git"
+Issues = "https://github.com/ArturSepp/OptionChainAnalytics/issues"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["option_chain_analytics*"]
+exclude = ["tests*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+src = ["src"]
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/**/__init__.py" = ["F401"]
+# These narrow waivers preserve pre-existing numerical and provider behavior.
+# New modules, the public example, and tests receive no blanket exemptions.
+"examples/fetch_vol_time_series.py" = ["F841"]
+"src/option_chain_analytics/chain_loader_from_ts.py" = ["E712"]
+"src/option_chain_analytics/data/yahoo.py" = ["E722", "F841"]
+"src/option_chain_analytics/fitters/qp_price_fitter.py" = ["E712", "F841"]
+"src/option_chain_analytics/fitters/vol_beta_fitter.py" = ["E712", "E722"]
+"src/option_chain_analytics/option_chain.py" = ["E712", "E741", "F841"]
+"src/option_chain_analytics/visuals/plots.py" = ["E741"]

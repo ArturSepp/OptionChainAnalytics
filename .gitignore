@@ -2,7 +2,13 @@
 prop/
 testing/
 
+# Local research artefacts and datasets
+/agents/
+/data/
+/outputs/
+
 # created by virtualenv automatically
+/pyvenv.cfg
 Lib/
 Scripts/
 

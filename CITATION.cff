@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata from this file."
+type: software
+title: "OptionChainAnalytics: point-in-time option-chain data for quantitative research"
+version: 2.0.0
+date-released: 2026-08-16
+authors:
+  - family-names: Sepp
+    given-names: Artur
+    orcid: "https://orcid.org/0000-0002-7038-1748"
+repository-code: "https://github.com/ArturSepp/OptionChainAnalytics"
+url: "https://pypi.org/project/option-chain-analytics/"
+license: MIT
+keywords:
+  - option-chains
+  - options-data
+  - implied-volatility
+  - quantitative-finance
+  - point-in-time-data
+  - python
