@@ -21,7 +21,16 @@ Install only the integration required by the study, for example
 The mapper interprets source `date` as 16:00 New York time and `exdate` as 16:15 New York time,
 then stores timezone-aware timestamps. Source `dte`, `impl_fw`, `impl_df`, and `mid_vols` become
 time to maturity, forward, discount factor, and mark implied volatility. The files do not contain
-an independent spot series.
+an independent spot series. Bid/ask implied volatilities are always inferred from the source
+bid/ask prices using those contemporaneous pricing inputs.
+
+Use `build_local_cboe_options_cache(ticker='SPX')` and
+`build_local_cboe_options_cache(ticker='VIX')` once to materialize normalized Zstandard-compressed
+Parquet files. Parquet is used instead of CSV because it preserves timezone-aware timestamps and
+numeric dtypes, supports predicate filtering by observation time, and is substantially smaller and
+faster for these multi-million-row panels. The loader prefers a valid cache automatically. Each
+file contains an OCA schema version and source size/modification fingerprint; a changed source or
+schema requires an explicit `overwrite=True` rebuild.
 
 For research returns, supply a separately licensed and time-aligned spot series. The
 `is_use_front_forward_as_spot=True` switch is a visualisation-only proxy and should be identified as

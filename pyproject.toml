@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "option-chain-analytics"
-version = "2.0.0"
+version = "2.0.1"
 description = "Point-in-time option-chain containers, feed normalisation, reconstruction, and queries for quantitative research"
 readme = "README.md"
 license = "MIT"
@@ -15,7 +15,7 @@ authors = [
 maintainers = [
     {name = "Artur Sepp", email = "artursepp@gmail.com"},
 ]
-requires-python = ">=3.14"
+requires-python = ">=3.10"
 keywords = [
     "option chains",
     "options data",
@@ -33,6 +33,10 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Topic :: Office/Business :: Financial :: Investment",
     "Topic :: Scientific/Engineering :: Information Analysis",
@@ -79,6 +83,7 @@ dev = [
     "build>=1.2.0",
     "pytest>=8.0.0",
     "ruff>=0.9.0",
+    "tomli>=2.0.0; python_version < '3.11'",
 ]
 all = [
     "bbg-fetch>=2.3.0",
@@ -114,7 +119,7 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 120
 src = ["src"]
-target-version = "py314"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]

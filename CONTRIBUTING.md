@@ -15,7 +15,7 @@ paper-specific portfolio logic belong in their research repositories.
 
 ## Development setup
 
-OCA requires Python 3.14 or newer.
+OCA requires Python 3.10 or newer. The full test matrix covers Python 3.10 through 3.14.
 
 ```bash
 python -m venv .venv

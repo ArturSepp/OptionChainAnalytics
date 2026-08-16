@@ -10,7 +10,7 @@ and plotting utilities come from [`qis`](https://github.com/ArturSepp/QuantInves
 
 ## Install
 
-OptionChainAnalytics requires Python 3.14 or newer.
+OptionChainAnalytics requires Python 3.10 or newer. CI covers Python 3.10 through 3.14.
 
 Install the published package:
 
@@ -73,10 +73,10 @@ implementation.
 - `SliceColumn` defines the common option-feed schema, including source time, contract, forward,
   discount factor, strike, expiry, quote, implied volatility, Greeks, volume, and open interest.
 
-Observation and expiry timestamps are timezone-aware. A point-in-time reconstruction performs an
-exact timestamp lookup; it does not silently use a later observation. Volatilities are decimals
-(`0.20` means 20%), time to maturity is in years, and each adapter must preserve and document its
-price/multiplier convention.
+Observation and expiry timestamps are timezone-aware. Exact lookup is the reconstruction default;
+scheduled studies can explicitly select the latest previous observation, but never a later one.
+Volatilities are decimals (`0.20` means 20%), time to maturity is in years, and each adapter must
+preserve and document its price/multiplier convention.
 
 ## Empirical feeds
 
@@ -93,10 +93,28 @@ options_data = OptionsDataDFs(
         ticker='SPX',
         start='2023-01-03',
         end='2023-01-03',
-        is_compute_bid_ask_iv=True,
     )
 )
 ```
+
+The Vlad mapper always infers bid/ask implied volatilities from the source bid/ask prices using
+the contemporaneous forward, discount factor, and time to maturity. This keeps every Vlad-backed
+`OptionsDataDFs` instance on the same complete schema.
+
+For repeated empirical studies, build one normalized Parquet cache per underlying after installing
+the `vlad` extra:
+
+```python
+from option_chain_analytics.ts_loaders import build_local_cboe_options_cache
+
+build_local_cboe_options_cache(ticker='SPX')
+build_local_cboe_options_cache(ticker='VIX')
+```
+
+This creates ignored `vlad_vols/spx_options_oca.parquet` and
+`vlad_vols/vix_options_oca.parquet` files. The normal loader uses a valid cache automatically and
+still accepts `start`/`end` filters. OCA embeds its cache schema and source-file fingerprint in each
+Parquet file and rejects stale caches. Use `overwrite=True` to rebuild deliberately.
 
 Vlad data supplies implied forwards but no independent spot series. Pass `spot_data`, or use
 `is_use_front_forward_as_spot=True` only for visualisation; a forward proxy is not a valid spot

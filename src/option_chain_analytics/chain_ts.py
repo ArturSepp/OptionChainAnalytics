@@ -46,7 +46,7 @@ class ChainTs:
         print(self.spot_data)
 
     def get_timeindex(self) -> pd.DatetimeIndex:
-        return pd.DatetimeIndex(self.chain_ts_group_by_time.groups.keys())
+        return pd.DatetimeIndex(self.chain_ts_group_by_time.groups.keys()).sort_values()
 
     def get_start_end_date(self) -> TimePeriod:
         times = self.get_timeindex()
@@ -60,14 +60,28 @@ class ChainTs:
 
     def get_time_slice(self,
                        timestamp: pd.Timestamp,
-                       contracts: List[str] = None
+                       contracts: List[str] = None,
+                       time_selection: Literal['exact', 'previous'] = 'exact',
                        ) -> pd.DataFrame:
         """
-         get non-nan time slice from series
-         return is df(index=contracts, colums=[mark_rpice, mark_vol,...])
-         """
-        if timestamp in self.chain_ts_group_by_time.groups:
-            df = self.chain_ts_group_by_time.get_group(timestamp)
+        Return one point-in-time option slice.
+
+        ``previous`` selects the latest observation at or before ``timestamp``. It
+        never selects a future observation, preserving the no-look-ahead contract.
+        """
+        if time_selection not in ('exact', 'previous'):
+            raise ValueError(f'unsupported time_selection={time_selection!r}')
+
+        timestamp = pd.Timestamp(timestamp)
+        selected_time = timestamp
+        if timestamp not in self.chain_ts_group_by_time.groups and time_selection == 'previous':
+            time_index = self.get_timeindex()
+            position = time_index.get_indexer([timestamp], method='pad')[0]
+            if position >= 0:
+                selected_time = time_index[position]
+
+        if selected_time in self.chain_ts_group_by_time.groups:
+            df = self.chain_ts_group_by_time.get_group(selected_time)
             df = df.set_index(SliceColumn.CONTRACT.value, drop=False)
             df.index.name = 'contract'
 

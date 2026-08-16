@@ -3,7 +3,7 @@ create chain data object with options using time series options data in OptionsD
 """
 # package
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Literal, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,13 +21,18 @@ from option_chain_analytics.option_chain import ExpirySlice, SliceColumn, Slices
 # @timer
 def create_chain_from_from_options_dfs(options_data_dfs: OptionsDataDFs,
                                        value_time: pd.Timestamp,
+                                       time_selection: Literal['exact', 'previous'] = 'exact',
                                        ) -> Optional[SlicesChain]:
     """
-    create chain of slices for options_data_dfs
+    Create a chain at an exact or explicitly previous observation time.
     """
-    options_df = options_data_dfs.get_time_slice(timestamp=value_time)
+    options_df = options_data_dfs.get_time_slice(
+        timestamp=value_time,
+        time_selection=time_selection,
+    )
 
     if not options_df.empty:
+        selected_value_time = pd.Timestamp(options_df[SliceColumn.EXCHANGE_TIME.value].iloc[0])
         # options_df[SliceColumn.CONTRACT.value] = options_df.index.to_list()
         mat_slice = options_df.groupby(SliceColumn.MATURITY_ID.value)
         expiry_slices, undelying_datas = {}, {}
@@ -41,7 +46,7 @@ def create_chain_from_from_options_dfs(options_data_dfs: OptionsDataDFs,
                 forward = np.nanmean(df[SliceColumn.FORWARD_PRICE.value])
             if not np.isnan(forward):
                 undelying_data = {UnderlyingColumn.EXPIRY_ID: str(mat),
-                                  UnderlyingColumn.VALUE_TIME: value_time,
+                                  UnderlyingColumn.VALUE_TIME: selected_value_time,
                                   UnderlyingColumn.EXPIRY: df[SliceColumn.EXPIRY].iloc[0],
                                   UnderlyingColumn.SPOT_PRICE: forward,  # to do
                                   UnderlyingColumn.UNDERLYING_INDEX: str(mat),  # to do
@@ -55,7 +60,7 @@ def create_chain_from_from_options_dfs(options_data_dfs: OptionsDataDFs,
         chain = SlicesChain(options_df=options_df,#.set_index(SliceColumn.CONTRACT),
                             undelying_df=undelying_df,
                             expiry_slices=expiry_slices,
-                            value_time=value_time)
+                            value_time=selected_value_time)
     else:
         chain = None
     return chain
@@ -66,7 +71,8 @@ def create_chain_timeseries(options_data_dfs: OptionsDataDFs,
                             dates_schedule: pd.DatetimeIndex = None,
                             time_period: TimePeriod = None,
                             freq: str = 'W-FRI',
-                            hour_offset: int = 8
+                            hour_offset: int = 8,
+                            time_selection: Literal['exact', 'previous'] = 'previous',
                             ) -> Dict[pd.Timestamp, SlicesChain]:
     """
     create dictionary of timestamp and corresponding slices
@@ -80,7 +86,11 @@ def create_chain_timeseries(options_data_dfs: OptionsDataDFs,
 
     chain_data = {}
     for timestamp in dates_schedule:
-        chain = create_chain_from_from_options_dfs(options_data_dfs=options_data_dfs, value_time=timestamp)
+        chain = create_chain_from_from_options_dfs(
+            options_data_dfs=options_data_dfs,
+            value_time=timestamp,
+            time_selection=time_selection,
+        )
         if chain is not None:
             chain_data[timestamp] = chain
     return chain_data

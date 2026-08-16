@@ -2,6 +2,33 @@
 
 All notable public changes to OptionChainAnalytics are recorded here.
 
+## 2.0.1 - 2026-08-16
+
+### Added
+
+- `build_local_cboe_options_cache`, which streams source Feather batches into one validated,
+  compressed normalized Parquet cache per SPX/VIX underlying.
+- Root `AGENTS.md` guidance covering point-in-time, provider, cache, licensing, dependency, and
+  release invariants for automated coding agents.
+
+### Changed
+
+- Restored support for Python 3.10 and newer, with CI across Python 3.10-3.14 and Python 3.10
+  fallbacks in project and distribution metadata checks.
+- Vlad normalisation now always derives bid/ask implied volatilities from source row prices using
+  the contemporaneous forward, discount factor, and time to maturity.
+- `load_local_vlad_options_data` now prefers validated per-underlying Parquet caches while retaining
+  source parsing as the fallback and supporting filtered point-in-time loads.
+- Point-in-time reconstruction now supports an explicit `previous` observation policy that can
+  only select data at or before the requested timestamp; exact selection remains the default.
+
+### Fixed
+
+- Scheduled chain construction now records the actual selected observation time and cannot borrow
+  a later observation when the requested schedule timestamp is absent.
+- Non-invertible CBOE quotes now produce `NaN` bid/ask IV rather than aborting normalization of a
+  complete cache build.
+
 ## 2.0.0 - 2026-08-16
 
 ### Added

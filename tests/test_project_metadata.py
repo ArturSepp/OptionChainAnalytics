@@ -1,8 +1,12 @@
 from __future__ import annotations
 
-import tomllib
 from pathlib import Path
 from xml.etree import ElementTree
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10
+    import tomli as tomllib
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 PUBLIC_DOCS_ROOT = 'https://artursepp.github.io/OptionChainAnalytics/'
@@ -16,7 +20,7 @@ def test_release_candidate_metadata_is_aligned() -> None:
     changelog = (REPOSITORY_ROOT / 'CHANGELOG.md').read_text(encoding='utf-8')
 
     assert project['version'].startswith('2.')
-    assert project['requires-python'] == '>=3.14'
+    assert project['requires-python'] == '>=3.10'
     assert project['license'] == 'MIT'
     assert project['urls']['Documentation'] == PUBLIC_DOCS_ROOT
     assert f"version: {project['version']}" in citation

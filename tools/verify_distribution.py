@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import argparse
-import tomllib
 from email.parser import Parser
 from pathlib import Path, PurePosixPath
 from tarfile import open as open_tarfile
 from zipfile import ZipFile
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10
+    import tomli as tomllib
 
 RAW_DATA_SUFFIXES = {'.csv', '.db', '.feather', '.parquet', '.pickle', '.pkl'}
 REPOSITORY_ONLY_ROOTS = {'agents', 'examples', 'outputs', 'tests'}
