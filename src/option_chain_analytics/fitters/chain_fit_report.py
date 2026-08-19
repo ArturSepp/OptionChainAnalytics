@@ -77,13 +77,11 @@ def run_chain_report(chain: SlicesChain,
 
 class UnitTests(Enum):
     DERIBIT_FIT = 1
-    YAHOO_FIT = 2
 
 
 def run_unit_test(unit_test: UnitTests):
 
     # to get options data
-    from option_chain_analytics import local_path as local_path
     from option_chain_analytics.chain_loader_from_ts import create_chain_from_from_options_dfs
     from option_chain_analytics.chain_ts import OptionsDataDFs
 
@@ -97,29 +95,12 @@ def run_unit_test(unit_test: UnitTests):
         fit_params = run_chain_vol_fit(chain=chain)
         print(fit_params)
 
-    elif unit_test == UnitTests.YAHOO_FIT:
-        from option_chain_analytics.data.yahoo import load_contract_ts_data
-
-        ticker = 'USO'
-        value_time = pd.Timestamp('2023-11-24 17:21:17.248659+00:00')
-        ticker = 'NVDA'
-        value_time = pd.Timestamp('2024-06-10 20:00:07.081976+00:00')
-
-        options_data_dfs = OptionsDataDFs(**load_contract_ts_data(ticker=ticker))
-        time_index = options_data_dfs.get_timeindex()
-        print(f"time_index={time_index}")
-        chain = create_chain_from_from_options_dfs(options_data_dfs=options_data_dfs, value_time=value_time)
-        figs = run_chain_report(chain=chain)
-        qis.save_figs_to_pdf(figs, file_name=f"{ticker}_vol_fit", local_path=local_path.get_output_path())
-
-        # run_chain_report(chain=chain)
-
     # plt.show()
 
 
 if __name__ == '__main__':
 
-    unit_test = UnitTests.YAHOO_FIT
+    unit_test = UnitTests.DERIBIT_FIT
 
     is_run_all_tests = False
     if is_run_all_tests:

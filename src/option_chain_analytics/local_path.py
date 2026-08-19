@@ -1,9 +1,18 @@
+"""Central local-drive paths for private data and generated OCA output.
+
+``OCA_DATA_PATH`` and ``OCA_OUTPUT_PATH`` may override the source-checkout
+defaults. Returned strings are absolute and include a trailing platform
+separator so provider subdirectories can follow the established QIS-style
+``f"{lp.get_resource_path()}provider\\"`` convention.
+"""
+
 import os
 from pathlib import Path
 from typing import Dict
 
 
 def _find_repository_root() -> Path:
+    """Return the nearest ancestor containing ``pyproject.toml``."""
     for parent in Path(__file__).resolve().parents:
         if parent.joinpath('pyproject.toml').is_file():
             return parent
@@ -11,6 +20,7 @@ def _find_repository_root() -> Path:
 
 
 def _get_directory(env_var: str, directory_name: str) -> str:
+    """Resolve one configured/default directory with a trailing separator."""
     path = Path(os.environ.get(env_var, _find_repository_root().joinpath(directory_name)))
     return f"{path.resolve()}{os.sep}"
 

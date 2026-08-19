@@ -15,6 +15,15 @@ from option_chain_analytics.config import (
     mat_to_timestamp,
 )
 from option_chain_analytics.data.simulated import generate_simulated_options_data
+from option_chain_analytics.data.thetadata import (
+    load_thetadata_eod_options_data,
+    load_thetadata_eod_options_timeseries,
+    map_thetadata_eod_options_data,
+)
+from option_chain_analytics.data.thetadata_cache import (
+    build_thetadata_eod_cache,
+    load_thetadata_eod_cache,
+)
 from option_chain_analytics.option_chain import (
     ExpirySlice,
     SliceColumn,
@@ -41,12 +50,17 @@ __all__ = [
     'compute_option_portfolio_dt',
     'compute_portfolio_payoff',
     'compute_time_to_maturity',
+    'build_thetadata_eod_cache',
     'create_chain_from_from_options_dfs',
     'create_chain_timeseries',
     'generate_atm_vols_skew',
     'generate_simulated_options_data',
     'generate_vol_delta_ts',
     'get_contract_execution_price',
+    'load_thetadata_eod_options_data',
+    'load_thetadata_eod_cache',
+    'load_thetadata_eod_options_timeseries',
+    'map_thetadata_eod_options_data',
     'mat_to_timestamp',
     'plot_slice_open_interest',
     'plot_slice_vols',

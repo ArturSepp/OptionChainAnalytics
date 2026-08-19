@@ -39,6 +39,12 @@ def verify_distribution(dist_dir: Path) -> None:
         member_names = {str(member) for member in members}
         if 'option_chain_analytics/data/simulated.py' not in member_names:
             raise AssertionError('wheel is missing deterministic simulated data support')
+        if 'option_chain_analytics/data/thetadata.py' not in member_names:
+            raise AssertionError('wheel is missing ThetaData EOD support')
+        if 'option_chain_analytics/fitters/forward_discount.py' not in member_names:
+            raise AssertionError('wheel is missing provider-independent parity fitting')
+        if 'option_chain_analytics/fitters/qp_price_fitter.py' in member_names:
+            raise AssertionError('wheel contains the retired CVXPY quote fitter')
         if not any(str(member).endswith('.dist-info/METADATA') for member in members):
             raise AssertionError('wheel is missing METADATA')
 
@@ -58,7 +64,16 @@ def verify_distribution(dist_dir: Path) -> None:
         if metadata['License-Expression'] != 'MIT':
             raise AssertionError(f"unexpected license expression: {metadata['License-Expression']}")
         extras = set(metadata.get_all('Provides-Extra', []))
-        expected_extras = {'all', 'bloomberg', 'cboe', 'ccxt', 'deribit', 'dev', 'docs', 'fitters', 'yahoo'}
+        expected_extras = {
+            'all',
+            'bloomberg',
+            'cboe',
+            'ccxt',
+            'deribit',
+            'dev',
+            'docs',
+            'thetadata',
+        }
         if extras != expected_extras:
             raise AssertionError(f'unexpected optional extras: {extras}')
 
@@ -74,6 +89,8 @@ def verify_distribution(dist_dir: Path) -> None:
             'RELEASING.md',
             'SECURITY.md',
             'docs/index.md',
+            'examples/build_thetadata_eod_cache.py',
+            'examples/fetch_thetadata_eod.py',
             'examples/first_success.py',
             'tools/verify_distribution.py',
         }

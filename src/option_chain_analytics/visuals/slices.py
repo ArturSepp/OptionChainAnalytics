@@ -69,7 +69,15 @@ def plot_slice_vols(eslice: ExpirySlice,
                   title=title,
                   ax=ax,
                   **kwargs)
-    qis.add_scatter_points(ax=ax, label_x_y=label_x_y, linewidth=10)
+    for label, (x_value, y_value) in label_x_y.items():
+        ax.scatter([x_value], [y_value], s=80, color='navy', zorder=5)
+        ax.annotate(
+            label,
+            xy=(x_value, y_value),
+            xytext=(5, 5),
+            textcoords='offset points',
+            color='navy',
+        )
 
 
 def plot_slice_vols_with_oi(eslice: ExpirySlice,
@@ -111,17 +119,16 @@ def plot_slice_vols_with_oi(eslice: ExpirySlice,
         widths = 0.25
     else:
         x_vals = df.index.to_numpy()
-        widths = np.minimum(np.min(np.abs(x_vals[1:] - x_vals[:-1])), 100.0)
+        widths = (
+            np.minimum(np.min(np.abs(x_vals[1:] - x_vals[:-1])), 100.0)
+            if len(x_vals) > 1
+            else max(0.01 * abs(float(x_vals[0])), 1.0)
+        )
     oi_sets = {'Puts OI': 'steelblue', 'Calls OI': 'turquoise'}
     for idx, (key, color) in enumerate(oi_sets.items()):
         ax.bar(x_vals, df.iloc[:, idx].to_numpy(), widths, color=color, alpha=0.5, label=key, edgecolor='none', linewidth=0)
-    qis.set_legend(ax=ax,
-                   labels=list(oi_sets.keys()),
-                   colors=list(oi_sets.values()),
-                   bbox_to_anchor=(0.4, 0.95),
-                   ncol=2,
-                   **kwargs)
-    qis.set_ax_xy_labels(ax=ax, ylabel='Contracts OI', **kwargs)
+    ax.legend(bbox_to_anchor=(0.4, 0.95), loc='upper center', ncol=2)
+    ax.set_ylabel('Contracts OI')
     ax.set_ylim([0.0, None])
 
 

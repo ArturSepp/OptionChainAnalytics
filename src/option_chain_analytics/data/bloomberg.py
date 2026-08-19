@@ -1,9 +1,10 @@
-"""
-use bbg api to create option chain data frame with columns = SliceColumn
+"""Fetch and persist Bloomberg BVOL volatility-surface time series.
 
 TODO: Map the bbg-fetch BVOL tenor/moneyness surface to synthetic option
 prices, with a deterministic option-maturity roll convention, for tests and
-visualisations. Keep this separate from empirical market-data loaders.
+visualisations. Until then, this module stores BVOL inputs under OCA's
+centralized ``bbg_vols`` resource folder and does not present them as observed
+option prices.
 """
 
 from enum import Enum
@@ -11,17 +12,20 @@ from enum import Enum
 import bbg_fetch as bbg
 import qis as qis
 
-from option_chain_analytics import local_path as local_path
+from option_chain_analytics import local_path as lp
 
-BBG_LOCAL_PATH = f"{local_path.get_resource_path()}\\bbg_vols\\"
+BBG_LOCAL_PATH = f"{lp.get_resource_path()}bbg_vols\\"
 print(BBG_LOCAL_PATH)
 
 
 class UnitTests(Enum):
+    """Runnable local Bloomberg data cases."""
+
     CREATE_VOL_DATA = 1
 
 
 def run_unit_test(unit_test: UnitTests):
+    """Fetch and save the selected Bloomberg BVOL time-series case."""
 
     if unit_test == UnitTests.CREATE_VOL_DATA:
         ticker = 'SPX Index'

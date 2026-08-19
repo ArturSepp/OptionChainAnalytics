@@ -1,5 +1,8 @@
-"""
-fetch deribit data
+"""Fetch, normalize, and persist live Deribit option observations.
+
+Raw API snapshots are stored as CSV and normalized ``SliceColumn`` panels are
+appended to Feather files under OCA's centralized ``deribit`` resource folder.
+This module performs network access only through explicit API calls.
 """
 from enum import Enum
 from typing import List, Literal
@@ -16,13 +19,14 @@ from option_chain_analytics.config import TIME_FMT, compute_time_to_maturity
 # internal
 from option_chain_analytics.option_chain import SliceColumn
 
-DERIBIT_LOCAL_PATH = f"{lp.get_resource_path()}\\deribit\\"
+DERIBIT_LOCAL_PATH = f"{lp.get_resource_path()}deribit\\"
 
 
 def get_deribit_local_file_path(current_time: pd.Timestamp,
                                 ticker: Literal['BTC', 'ETH'] = 'ETH',
                                 local_path: str = DERIBIT_LOCAL_PATH
                                 ) -> str:
+    """Return the timestamped CSV path for one raw Deribit snapshot."""
     file_path = f"{local_path}{ticker}_{current_time.strftime(TIME_FMT)}.csv"
     return file_path
 
@@ -30,6 +34,7 @@ def get_deribit_local_file_path(current_time: pd.Timestamp,
 def get_deribit_appended_file_path(ticker: Literal['BTC', 'ETH'] = 'ETH',
                                    local_path: str = DERIBIT_LOCAL_PATH
                                    ) -> str:
+    """Return the Feather path for a ticker's appended normalized history."""
     file_path = f"{local_path}{ticker}_appended_options.feather"
     return file_path
 
@@ -207,12 +212,15 @@ def update_deribit_options_data(tickers: List[str] = ("ETH", "BTC"), is_print: b
 
 
 class UnitTests(Enum):
+    """Runnable local Deribit data cases."""
+
     FILE_PATH = 1
     UPDATE_OPTIONS_DATA = 2
     LOAD_DERIBIT_OPTIONS_DF = 3
 
 
 def run_unit_test(unit_test: UnitTests):
+    """Run the selected local Deribit fetch or loading diagnostic."""
 
     pd.set_option('display.max_columns', 500)
 

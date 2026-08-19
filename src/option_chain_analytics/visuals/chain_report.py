@@ -1,3 +1,10 @@
+"""Multi-panel volatility and open-interest reports for option chains.
+
+``run_chain_report`` creates one strike-space and delta-space figure per
+expiry. The local diagnostic persists the resulting figure collection through
+OCA's centralized output path.
+"""
+
 from enum import Enum
 from typing import Dict
 
@@ -17,6 +24,18 @@ FIG_SIZE = (8.3, 11.7)  # A4 for portrait
 
 
 def run_chain_report(chain: SlicesChain) -> Dict[str, plt.Figure]:
+    """Create strike- and delta-space diagnostic figures for every live expiry.
+
+    Parameters
+    ----------
+    chain : SlicesChain
+        Point-in-time option chain to visualize.
+
+    Returns
+    -------
+    dict[str, matplotlib.figure.Figure]
+        Figures keyed by expiry and filtering configuration.
+    """
     figs = {}
     configs = {'Unrestricted': dict(delta_bounds=None, is_filtered=False),
                'Deltas > 0.1': dict(delta_bounds=(-0.1, 0.1), is_filtered=True)}
@@ -37,19 +56,21 @@ def run_chain_report(chain: SlicesChain) -> Dict[str, plt.Figure]:
                                                 is_delta_space=True,
                                                 ax=ax, **vals)
                 figs[f"{expiry}_{key}"] = fig
-
-    plt.close('all')
+                plt.close(fig)
 
     return figs
 
 
 class UnitTests(Enum):
+    """Runnable local chain-report cases."""
+
     RUN_CHAIN_REPORT = 1
 
 
 def run_unit_test(unit_test: UnitTests):
+    """Build and save the selected local chain-report case."""
 
-    from option_chain_analytics import local_path as local_path
+    from option_chain_analytics import local_path as lp
     from option_chain_analytics.ts_loaders import DataSource, ts_data_loader_wrapper
 
     ticker = 'BTC'
@@ -63,7 +84,7 @@ def run_unit_test(unit_test: UnitTests):
         qis.save_figs_to_pdf(figs=figs,
                              file_name=f"chain_report_{value_time:%Y%m%dT%H%M%S}",
                              orientation='landscape',
-                             local_path=local_path.get_output_path())
+                             local_path=lp.get_output_path())
 
     plt.show()
 

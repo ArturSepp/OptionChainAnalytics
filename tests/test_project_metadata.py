@@ -19,9 +19,16 @@ def test_release_candidate_metadata_is_aligned() -> None:
     citation = (REPOSITORY_ROOT / 'CITATION.cff').read_text(encoding='utf-8')
     changelog = (REPOSITORY_ROOT / 'CHANGELOG.md').read_text(encoding='utf-8')
 
-    assert project['version'] == '3.0.0'
+    assert project['version'] == '4.0.0'
     assert project['requires-python'] == '>=3.10'
     assert project['license'] == 'MIT'
+    optional_dependencies = project['optional-dependencies']
+    assert 'fitters' not in optional_dependencies
+    assert not any(
+        'cvxpy' in requirement.lower()
+        for requirements in optional_dependencies.values()
+        for requirement in requirements
+    )
     assert project['urls']['Documentation'] == PUBLIC_DOCS_ROOT
     assert f"version: {project['version']}" in citation
     assert f"## {project['version']}" in changelog

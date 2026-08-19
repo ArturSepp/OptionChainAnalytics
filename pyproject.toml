@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "option-chain-analytics"
-version = "3.0.0"
+version = "4.0.0"
 description = "Point-in-time option-chain containers, feed normalisation, reconstruction, and queries for quantitative research"
 readme = "README.md"
 license = "MIT"
@@ -61,18 +61,15 @@ deribit = [
     "requests>=2.31.0",
     "tqdm>=4.66.0",
 ]
-yahoo = [
-    "cvxpy>=1.4.0",
-    "yfinance>=0.2.40",
-]
 ccxt = [
     "ccxt>=4.0.0",
 ]
 bloomberg = [
     "bbg-fetch>=2.3.0",
 ]
-fitters = [
-    "cvxpy>=1.4.0",
+thetadata = [
+    "python-dotenv>=1.0; python_version >= '3.12'",
+    "thetadata>=1.0.9; python_version >= '3.12'",
 ]
 docs = [
     "furo>=2024.8.6",
@@ -88,14 +85,14 @@ dev = [
 all = [
     "bbg-fetch>=2.3.0",
     "ccxt>=4.0.0",
-    "cvxpy>=1.4.0",
     "furo>=2024.8.6",
     "myst-parser>=4.0",
     "pyarrow>=14.0.0",
+    "python-dotenv>=1.0; python_version >= '3.12'",
     "requests>=2.31.0",
     "sphinx>=8.0",
     "tqdm>=4.66.0",
-    "yfinance>=0.2.40",
+    "thetadata>=1.0.9; python_version >= '3.12'",
 ]
 
 [project.urls]
@@ -131,8 +128,6 @@ ignore = ["E501"]
 # New modules, the public example, and tests receive no blanket exemptions.
 "examples/fetch_vol_time_series.py" = ["F841"]
 "src/option_chain_analytics/chain_loader_from_ts.py" = ["E712"]
-"src/option_chain_analytics/data/yahoo.py" = ["E722", "F841"]
-"src/option_chain_analytics/fitters/qp_price_fitter.py" = ["E712", "F841"]
 "src/option_chain_analytics/fitters/vol_beta_fitter.py" = ["E712", "E722"]
 "src/option_chain_analytics/option_chain.py" = ["E712", "E741", "F841"]
 "src/option_chain_analytics/visuals/plots.py" = ["E741"]

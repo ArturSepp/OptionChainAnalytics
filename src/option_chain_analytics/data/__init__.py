@@ -9,19 +9,38 @@ from typing import Any
 from option_chain_analytics.data.simulated import generate_simulated_options_data
 
 __all__ = [
-    'fetch_yahoo_options_live_data',
     'generate_simulated_options_data',
+    'build_thetadata_eod_cache',
+    'load_thetadata_eod_cache',
+    'load_thetadata_eod_options_data',
+    'map_thetadata_eod_options_data',
     'update_deribit_options_data',
 ]
 
 
 def __getattr__(name: str) -> Any:
+    if name in {'build_thetadata_eod_cache', 'load_thetadata_eod_cache'}:
+        from option_chain_analytics.data.thetadata_cache import (
+            build_thetadata_eod_cache,
+            load_thetadata_eod_cache,
+        )
+
+        return {
+            'build_thetadata_eod_cache': build_thetadata_eod_cache,
+            'load_thetadata_eod_cache': load_thetadata_eod_cache,
+        }[name]
     if name == 'update_deribit_options_data':
         from option_chain_analytics.data.deribit import update_deribit_options_data
 
         return update_deribit_options_data
-    if name == 'fetch_yahoo_options_live_data':
-        from option_chain_analytics.data.yahoo import fetch_yahoo_options_live_data
+    if name in {'load_thetadata_eod_options_data', 'map_thetadata_eod_options_data'}:
+        from option_chain_analytics.data.thetadata import (
+            load_thetadata_eod_options_data,
+            map_thetadata_eod_options_data,
+        )
 
-        return fetch_yahoo_options_live_data
+        return {
+            'load_thetadata_eod_options_data': load_thetadata_eod_options_data,
+            'map_thetadata_eod_options_data': map_thetadata_eod_options_data,
+        }[name]
     raise AttributeError(f'module {__name__!r} has no attribute {name!r}')

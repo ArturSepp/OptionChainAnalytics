@@ -1,5 +1,8 @@
-"""
-old_analytics for fitting vol for log sv model
+"""Legacy approximate LogSV smile analytics.
+
+TODO: Move the provider-independent LogSV smile, density, and synthetic-price
+analytics to StochVolModels, update SigmaStrats' LP hedger to import them there,
+and leave OCA responsible only for normalized option-chain data.
 """
 from enum import Enum
 from typing import Dict, Optional, Tuple, Union

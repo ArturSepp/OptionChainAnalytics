@@ -5,10 +5,11 @@ tag, GitHub Release, documentation deployment, or package upload.
 
 ## Release target
 
-The approved release target is `2.0.1`. It restores Python 3.10 support and adds deterministic
-point-in-time selection plus normalized per-underlying CBOE caches after the `2.0.0` src-layout
-release. The tag, GitHub Release, package upload, and Pages deployment must all refer to the same
-verified release commit and artefacts.
+The approved release target is `4.0.0`. It adds point-in-time ThetaData EOD and local Tardis cache
+workflows, robust provider-neutral forward/discount fitting, and one normalized schema-v3 cache
+contract across the supported local underlyings. It also removes the incomplete Yahoo adapter and
+unused CVXPY quote fitter. The tag, GitHub Release, package upload, and Pages deployment must all
+refer to the same verified release commit and artefacts.
 
 ## Candidate verification
 
@@ -35,7 +36,7 @@ machine paths, and repository-only agent/output files.
 2. Confirm `project.version`, `CITATION.cff`, and the dated changelog identify the same release.
 3. Repeat every candidate check and inspect installed metadata.
 4. Obtain explicit approval to publish.
-5. Tag the verified commit `v2.0.1`, publish the same artefact to PyPI, create the GitHub Release,
+5. Tag the verified commit `v4.0.0`, publish the same artefact to PyPI, create the GitHub Release,
    and manually run the Pages workflow.
 6. Verify the PyPI README and links, GitHub release/tag, Pages canonical links, `robots.txt`, and
    `sitemap.xml`; record immutable evidence in the ignored `agents/RELEASE_REPORT.md`.

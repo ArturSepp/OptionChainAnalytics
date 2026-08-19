@@ -1,6 +1,8 @@
-"""
-collector of aligned time series data for option
-options data is split in frames
+"""Aligned option and futures time-series containers.
+
+``ChainTs`` owns provider-normalized observations, aligned spot data, and
+point-in-time slicing. ``OptionsDataDFs`` is the long-form option-panel input
+used by OCA's chain reconstruction functions.
 """
 from __future__ import annotations
 
@@ -32,27 +34,33 @@ class ChainTs:
     ticker: str
 
     def __post_init__(self):
+        """Index observations by exchange time and initialize cached analytics."""
         self.chain_ts_group_by_time = self.chain_ts.groupby(SliceColumn.EXCHANGE_TIME.value)
         self.ewm_vol: Optional[pd.Series] = None
 
     def get_contract_data(self, contact: str) -> pd.DataFrame:
+        """Return all observations for one contract identifier."""
         df = self.chain_ts.loc[self.chain_ts[SliceColumn.CONTRACT.value] == contact, :]
         return df
 
     def print(self):
+        """Print the option/futures panel and its aligned spot data."""
         print('chain_ts')
         print(self.chain_ts)
         print('spot_data')
         print(self.spot_data)
 
     def get_timeindex(self) -> pd.DatetimeIndex:
+        """Return the sorted observation-time index."""
         return pd.DatetimeIndex(self.chain_ts_group_by_time.groups.keys()).sort_values()
 
     def get_start_end_date(self) -> TimePeriod:
+        """Return the inclusive time span covered by the observations."""
         times = self.get_timeindex()
         return qis.TimePeriod(times.min(), times.max())
 
     def get_spot_data(self, time_period: TimePeriod = None) -> pd.DataFrame:
+        """Return aligned spot data, optionally restricted to ``time_period``."""
         df = self.spot_data
         if time_period is not None:
             df = time_period.locate(df)
@@ -99,6 +107,7 @@ class ChainTs:
                        value_time: pd.Timestamp = None,
                        index: Union[pd.DatetimeIndex, pd.Index] = None
                        ) -> Union[float, pd.Series]:
+        """Return spot at one observation time or aligned to a supplied index."""
         value = self.spot_data['close'].rename(self.ticker)
         if value_time is not None:
             if value_time in value.index:
@@ -172,6 +181,7 @@ class ChainTs:
                     value_time: pd.Timestamp,
                     span: float = 168  # =7*24
                     ) -> float:
+        """Return annualized EWM spot volatility available at ``value_time``."""
         if self.ewm_vol is None:
             returns = np.log(self.spot_data['close']).diff()
             self.ewm_vol = qis.compute_ewm_vol(data=returns, span=span, af=24.0 * 365.0)
@@ -196,6 +206,8 @@ class FuturesChainTs(ChainTs):
     implementation of futures time series data
     """
     class FuturesDataColumns(str, Enum):
+        """Canonical column names for futures observations."""
+
         MARK_PRICE = 'mark_price'
         OPEN = 'open'
         HIGH = 'high'
@@ -227,20 +239,23 @@ class OptionsDataDFs(ChainTs):
 
 
 class UnitTests(Enum):
+    """Runnable local diagnostic cases for this module."""
+
     TEST_CHAIN = 1
 
 
 def run_unit_test(unit_test: UnitTests):
+    """Run a local Tardis/Deribit chain-container diagnostic."""
 
-    from option_chain_analytics import local_path as local_path
+    from option_chain_analytics import local_path as lp
 
     if unit_test == UnitTests.TEST_CHAIN:
         ticker = 'ETH'
         chain_ts = qis.load_df_from_feather(file_name=f"{ticker}_freq_H",
                                             index_col=None,
-                                            local_path=f"{local_path.get_resource_path()}\\tardis\\")
+                                            local_path=f"{lp.get_resource_path()}tardis\\")
         spot_data = qis.load_df_from_feather(file_name=f"{ticker}-spot",
-                                             local_path=f"{local_path.get_resource_path()}\\deribit\\")
+                                             local_path=f"{lp.get_resource_path()}deribit\\")
 
         chain_ts = ChainTs(chain_ts=chain_ts, spot_data=spot_data, ticker=ticker)
         chain_ts.print()

@@ -1,66 +1,61 @@
-from enum import Enum
+"""Create an OCA chain report from the local SPY ThetaData EOD cache."""
+
+from __future__ import annotations
+
+import argparse
+from datetime import date
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
-import qis
+from matplotlib.backends.backend_pdf import PdfPages
 
-# analytics
 from option_chain_analytics import (
-    OptionsDataDFs,
     create_chain_from_from_options_dfs,
-    plot_slice_open_interest,
-    plot_slice_vols,
+    load_thetadata_eod_cache,
     run_chain_report,
 )
-from option_chain_analytics import local_path as local_path
-from option_chain_analytics.ts_loaders import DataSource, ts_data_loader_wrapper
+from option_chain_analytics import local_path as lp
 
 
-class UnitTests(Enum):
-    PRINT_CHAIN_DATA = 1
-    PLOT_SLICE_DATA = 2
-    RUN_CHAIN_REPORT = 3
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--ticker', default='SPY')
+    parser.add_argument('--date', type=date.fromisoformat, default=date(2026, 7, 17))
+    parser.add_argument('--cache-root', type=Path)
+    parser.add_argument('--output', type=Path)
+    return parser.parse_args()
 
 
-def run_unit_test(unit_test: UnitTests):
-
-    pd.set_option('display.max_rows', 500)
-    pd.set_option('display.max_columns', 500)
-    pd.set_option('display.width', 1000)
-
-    ticker = 'BTC'  # BTC, ETH
-    # value_time = pd.Timestamp('2023-10-01 08:00:00+00:00')
-    value_time = pd.Timestamp('2023-10-01 08:00:00+00:00')
-
-    options_data_dfs = OptionsDataDFs(**ts_data_loader_wrapper(ticker=ticker, data_source=DataSource.TARDIS_LOCAL))
-    chain = create_chain_from_from_options_dfs(options_data_dfs=options_data_dfs, value_time=value_time)
-
-    if unit_test == UnitTests.PRINT_CHAIN_DATA:
-        for expiry, eslice in chain.expiry_slices.items():
-            eslice.print()
-
-    elif unit_test == UnitTests.PLOT_SLICE_DATA:
-        eslice = chain.expiry_slices['31MAR23']
-        plot_slice_vols(eslice=eslice)
-        plot_slice_open_interest(eslice=eslice)
-
-    elif unit_test == UnitTests.RUN_CHAIN_REPORT:
-        figs = run_chain_report(chain=chain)
-        qis.save_figs_to_pdf(figs=figs,
-                             file_name=f"chain_report_{value_time:%Y%m%dT%H%M%S}",
-                             orientation='landscape',
-                             local_path=local_path.get_output_path())
-
-    plt.show()
+def main() -> None:
+    args = _parse_args()
+    cache_root = args.cache_root or Path(lp.get_resource_path()).joinpath(
+        'thetadata_options', args.ticker.lower()
+    )
+    options_data = load_thetadata_eod_cache(
+        cache_root,
+        start_date=args.date,
+        end_date=args.date,
+    )
+    value_time = pd.Timestamp(options_data.get_timeindex()[0])
+    chain = create_chain_from_from_options_dfs(options_data, value_time=value_time)
+    if chain is None:
+        raise RuntimeError(f'no exact OCA chain available for {args.date}')
+    figures = run_chain_report(chain=chain)
+    print(f'ticker={options_data.ticker}')
+    print(f'value_time={value_time}')
+    print(f'expirations={len(chain.expiry_slices)}')
+    print(f'contracts={len(chain.options_df)}')
+    if args.output is None:
+        plt.show()
+    else:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        with PdfPages(args.output) as pdf:
+            for figure in figures.values():
+                pdf.savefig(figure)
+        print(f'report={args.output.resolve()}')
+        plt.close('all')
 
 
 if __name__ == '__main__':
-
-    unit_test = UnitTests.RUN_CHAIN_REPORT
-
-    is_run_all_tests = False
-    if is_run_all_tests:
-        for unit_test in UnitTests:
-            run_unit_test(unit_test=unit_test)
-    else:
-        run_unit_test(unit_test=unit_test)
+    main()

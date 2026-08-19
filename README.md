@@ -3,8 +3,8 @@
 OptionChainAnalytics provides point-in-time option-chain containers, feed normalisation,
 chain reconstruction, queries, and visualisation in Python for quantitative research.
 
-It is the data-container layer: provider retrieval, pricing models, portfolio backtests, and
-proprietary datasets remain separate. Pricing and implied-volatility inversion are delegated to
+It is the data-container layer: provider credentials and data rights, pricing models, portfolio
+backtests, and proprietary datasets remain separate. Pricing and implied-volatility inversion are delegated to
 [`vanilla-option-pricers`](https://github.com/ArturSepp/VanillaOptionPricers); generic time-series
 and plotting utilities come from [`qis`](https://github.com/ArturSepp/QuantInvestStrats).
 
@@ -30,10 +30,9 @@ Provider-specific integrations are optional:
 |---|---|
 | `cboe` | Local Arrow/Feather CBOE fitted-chain files |
 | `deribit` | Deribit HTTP collection helpers |
-| `yahoo` | Yahoo snapshots and the fitter used by that adapter |
 | `ccxt` | CCXT market-data integration |
 | `bloomberg` | Bloomberg retrieval through `bbg-fetch` |
-| `fitters` | CVXPY-based quote fitting |
+| `thetadata` | ThetaData national EOD equity/ETF option reports (Python 3.12+) |
 | `docs`, `dev`, `all` | Documentation, contributor tooling, or every optional integration |
 
 For example, `pip install "option-chain-analytics[cboe]"` installs the CBOE file dependency without
@@ -78,6 +77,11 @@ scheduled studies can explicitly select the latest previous observation, but nev
 Volatilities are decimals (`0.20` means 20%), time to maturity is in years, and each adapter must
 preserve and document its price/multiplier convention.
 
+Provider adapters own feed-specific choices such as report alignment, rate symbols, settlement
+timestamps, product scope, and admissible bounds. Reusable numerical kernels live separately under
+`option_chain_analytics.fitters`; the call-put parity fitter has no provider or optional-solver
+dependency. Black-Scholes analytics remain delegated to `vanilla-option-pricers`.
+
 ## Empirical feeds
 
 Local adapters cover Deribit/Tardis crypto histories and SPX/VIX CBOE fitted-chain files. These
@@ -119,6 +123,96 @@ Parquet file and rejects stale caches. Use `overwrite=True` to rebuild deliberat
 CBOE data supplies implied forwards but no independent spot series. Pass `spot_data`, or use
 `is_use_front_forward_as_spot=True` only for visualisation; a forward proxy is not a valid spot
 return series for backtesting.
+
+ThetaData EOD equity/ETF reports can be fetched directly into the same container after installing
+the optional client:
+
+```bash
+pip install "option-chain-analytics[thetadata]"
+python examples/fetch_thetadata_eod.py
+python examples/fetch_thetadata_eod.py --live --ticker AAPL \
+    --value-date 2026-07-24 --expiration 2026-08-21 --metric atm
+python examples/fetch_thetadata_eod.py --live --ticker MSFT \
+    --value-date 2026-07-24 --expiration 2026-08-21 --metric skew --delta 0.25
+```
+
+For reusable research history, build resumable monthly Parquet partitions once:
+
+```bash
+python examples/build_thetadata_eod_cache.py --ticker SPY --start-date 2023-06-01
+```
+
+The callable API supports bounded reads, so a monthly analysis does not scan the full cache:
+
+```python
+from option_chain_analytics import load_thetadata_eod_cache
+
+spy_july = load_thetadata_eod_cache(
+    'data/thetadata_options/spy',
+    start_date='2026-07-01',
+    end_date='2026-07-31',
+)
+```
+
+The same example exposes a regular function for IDE, notebook, or application use:
+
+```python
+from examples.fetch_thetadata_eod import display_thetadata_eod_metrics
+
+result = display_thetadata_eod_metrics(
+    ticker='AAPL',
+    value_date='2026-07-24',
+    expiration='2026-08-21',
+    metric='atm',  # 'atm', 'skew', or 'both'
+    delta=0.25,
+    is_live=True,
+)
+print(result['atm_vol'])
+```
+
+To load the local SPY prototype, reconstruct an exact chain at every EOD timestamp, and plot
+rolling ATM volatility or 25-delta skew:
+
+```bash
+python examples/fetch_thetadata_atm_timeseries.py --metric atm --output spy_atm_vol.png
+python examples/fetch_thetadata_atm_timeseries.py --metric skew --output spy_skew.png
+```
+
+Pass `--live --ticker AAPL --start-date ... --end-date ...` to fetch instead of reading a cache.
+
+The live callable form returns the OCA history object, reconstructed chain dictionary, ATM data
+frame, and Matplotlib figure:
+
+```python
+from examples.fetch_thetadata_atm_timeseries import fetch_and_plot_thetadata_atm_vols
+
+options_data, chains, atm_data, figure = fetch_and_plot_thetadata_atm_vols(
+    ticker='AAPL',
+    start_date='2026-07-20',
+    end_date='2026-08-14',
+    min_dte=7,
+    max_dte=60,
+    days_before_roll=7,
+    output_path='aapl_atm_vol.png',
+)
+```
+
+For skew, call `fetch_and_plot_thetadata_skew` from the same module. The returned `atm_data` contains
+both `atm_vol` and `skew`, plus the selected `expiration` and actual `dte`. OCA defines delta skew as
+`(call IV - put IV) / log(call strike / put strike)`; the plot displays 100 times this decimal slope
+as volatility points per unit log-strike.
+
+The first command is synthetic, deterministic, credential-free, and does not contact ThetaData.
+Live mode delegates authentication to the
+official ThetaData client, including its `THETADATA_API_KEY` and credentials-file mechanisms. The
+adapter records the provider's actual EOD report time, joins only an underlying report available at
+or before that time, preserves both calls and puts, fetches ThetaData SOFR EOD by default to anchor
+the discount factor, and robustly infers forwards from parity. Set `rate_symbol=None` for a parity-only
+fit. Every bid, mark, and ask IV and every mark Greek is computed by `vanilla-option-pricers`.
+Use `--metric atm`, `--metric skew`, or the default `--metric both`. ATM volatility averages call
+and put mark IV at the nearest forward strike. Delta skew is OCA's call-minus-put volatility slope
+over log-strike distance at the requested absolute delta. The adapter deliberately excludes index
+options with product-specific or AM settlement conventions.
 
 The Bloomberg BVOL-to-synthetic-option mapping remains a TODO: it must define maturity rolling and
 price generation before BVOL surfaces can be represented as option panels.
