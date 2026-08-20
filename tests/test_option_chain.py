@@ -1,6 +1,6 @@
 import numpy as np
 
-from option_chain_analytics.config import NearestStrikeOnGrid
+from option_chain_analytics import NearestStrikeOnGrid
 from option_chain_analytics.option_chain import find_idx_nearest_element
 
 

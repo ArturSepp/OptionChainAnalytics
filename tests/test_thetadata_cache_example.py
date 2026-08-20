@@ -9,13 +9,14 @@ from typing import Any
 import pandas as pd
 import pytest
 import vanilla_option_pricers as bsm
+from examples.build_thetadata_eod_cache import create_thetadata_options_data
 
 from option_chain_analytics import (
     SliceColumn,
     build_thetadata_eod_cache,
     load_thetadata_eod_cache,
 )
-from option_chain_analytics.ts_loaders import _get_oca_options_arrow_schema
+from option_chain_analytics.data.cache import _get_oca_options_arrow_schema
 
 pq = pytest.importorskip('pyarrow.parquet')
 
@@ -148,3 +149,42 @@ def test_thetadata_cache_bulk_round_trip_and_resume(tmp_path: Path) -> None:
     )
     assert len(client.option_calls) == 1
     assert len(client.stock_calls) == 1
+
+
+def test_thetadata_cache_default_uses_oca_cache_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An omitted output directory writes beneath the normalized-cache root."""
+    cache_base = tmp_path.joinpath('normalized-caches')
+    monkeypatch.setenv('OCA_CACHE_PATH', str(cache_base))
+
+    cache_root = build_thetadata_eod_cache(
+        ticker='SPY',
+        start_date=REPORT_DATES[0],
+        end_date=REPORT_DATES[1],
+        client=FakeBulkThetaDataClient(),
+    )
+
+    assert cache_root == cache_base.joinpath('thetadata_options', 'spy').resolve()
+    assert cache_root.joinpath('manifest.json').is_file()
+
+
+def test_callable_example_returns_one_complete_options_data_container(tmp_path: Path) -> None:
+    cache_root = tmp_path.joinpath('spy')
+
+    options_data = create_thetadata_options_data(
+        ticker='SPY',
+        start_date=REPORT_DATES[0],
+        end_date=REPORT_DATES[1],
+        output_dir=cache_root,
+        client=FakeBulkThetaDataClient(),
+    )
+
+    assert options_data.ticker == 'SPY'
+    assert len(options_data.chain_ts) == 12
+    assert len(options_data.get_timeindex()) == 2
+    assert len(options_data.spot_data) == 2
+    assert [path.name for path in cache_root.joinpath('options').glob('*.parquet')] == [
+        '2026-08.parquet'
+    ]

@@ -18,15 +18,15 @@ REPOSITORY_ONLY_ROOTS = {'agents', 'examples', 'outputs', 'tests'}
 PRIVATE_SOURCE_ROOTS = {'agents', 'data', 'outputs'}
 
 
-def load_expected_project_metadata(repository_root: Path) -> tuple[str, str]:
+def load_expected_project_metadata(repository_root: Path) -> tuple[str, str, set[str]]:
     with (repository_root / 'pyproject.toml').open('rb') as stream:
         project = tomllib.load(stream)['project']
-    return project['version'], project['requires-python']
+    return project['version'], project['requires-python'], set(project['optional-dependencies'])
 
 
 def verify_distribution(dist_dir: Path) -> None:
     repository_root = Path(__file__).resolve().parents[1]
-    expected_version, expected_python = load_expected_project_metadata(repository_root)
+    expected_version, expected_python, expected_extras = load_expected_project_metadata(repository_root)
     wheels = sorted(dist_dir.glob('*.whl'))
     source_distributions = sorted(dist_dir.glob('*.tar.gz'))
     if len(wheels) != 1 or len(source_distributions) != 1:
@@ -37,12 +37,45 @@ def verify_distribution(dist_dir: Path) -> None:
     with ZipFile(wheels[0]) as archive:
         members = [PurePosixPath(name) for name in archive.namelist() if not name.endswith('/')]
         member_names = {str(member) for member in members}
+        required_core_modules = {
+            'option_chain_analytics/conventions.py',
+            'option_chain_analytics/data/cache.py',
+            'option_chain_analytics/data/cboe.py',
+            'option_chain_analytics/data/deribit.py',
+            'option_chain_analytics/data/loaders.py',
+            'option_chain_analytics/data/tardis.py',
+            'option_chain_analytics/option_data.py',
+            'option_chain_analytics/reconstruction.py',
+        }
+        missing_core_modules = required_core_modules - member_names
+        if missing_core_modules:
+            raise AssertionError(f'wheel is missing public core modules: {missing_core_modules}')
+        retired_modules = {
+            'option_chain_analytics/chain_loader_from_ts.py',
+            'option_chain_analytics/chain_ts.py',
+            'option_chain_analytics/config.py',
+            'option_chain_analytics/data/chain_loader_from_ts.py',
+            'option_chain_analytics/data/chain_ts.py',
+            'option_chain_analytics/data/config.py',
+            'option_chain_analytics/ts_loaders.py',
+        }
+        packaged_retired_modules = retired_modules & member_names
+        if packaged_retired_modules:
+            raise AssertionError(f'wheel contains retired compatibility modules: {packaged_retired_modules}')
+        packaged_ccxt_files = {name for name in member_names if 'ccxt' in name.lower()}
+        if packaged_ccxt_files:
+            raise AssertionError(f'wheel contains retired CCXT integration files: {packaged_ccxt_files}')
         if 'option_chain_analytics/data/simulated.py' not in member_names:
             raise AssertionError('wheel is missing deterministic simulated data support')
         if 'option_chain_analytics/data/thetadata.py' not in member_names:
             raise AssertionError('wheel is missing ThetaData EOD support')
-        if 'option_chain_analytics/fitters/forward_discount.py' not in member_names:
+        if 'option_chain_analytics/utils/forward_discount.py' not in member_names:
             raise AssertionError('wheel is missing provider-independent parity fitting')
+        packaged_fitter_files = {
+            name for name in member_names if name.startswith('option_chain_analytics/fitters/')
+        }
+        if packaged_fitter_files:
+            raise AssertionError(f'wheel contains the retired fitters package: {packaged_fitter_files}')
         if 'option_chain_analytics/fitters/qp_price_fitter.py' in member_names:
             raise AssertionError('wheel contains the retired CVXPY quote fitter')
         if not any(str(member).endswith('.dist-info/METADATA') for member in members):
@@ -64,16 +97,6 @@ def verify_distribution(dist_dir: Path) -> None:
         if metadata['License-Expression'] != 'MIT':
             raise AssertionError(f"unexpected license expression: {metadata['License-Expression']}")
         extras = set(metadata.get_all('Provides-Extra', []))
-        expected_extras = {
-            'all',
-            'bloomberg',
-            'cboe',
-            'ccxt',
-            'deribit',
-            'dev',
-            'docs',
-            'thetadata',
-        }
         if extras != expected_extras:
             raise AssertionError(f'unexpected optional extras: {extras}')
 
@@ -89,6 +112,7 @@ def verify_distribution(dist_dir: Path) -> None:
             'RELEASING.md',
             'SECURITY.md',
             'docs/index.md',
+            'examples/README.md',
             'examples/build_thetadata_eod_cache.py',
             'examples/fetch_thetadata_eod.py',
             'examples/first_success.py',
@@ -97,6 +121,8 @@ def verify_distribution(dist_dir: Path) -> None:
         missing_source_files = required_source_files - source_names
         if missing_source_files:
             raise AssertionError(f'source distribution is missing public materials: {missing_source_files}')
+        if 'examples/build_local_options_caches.py' in source_names:
+            raise AssertionError('source distribution contains the private local-cache builder')
         private_source_files = [
             member for member in relative_members if member.parts and member.parts[0] in PRIVATE_SOURCE_ROOTS
         ]

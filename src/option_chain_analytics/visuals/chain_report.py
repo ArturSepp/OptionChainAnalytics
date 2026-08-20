@@ -16,9 +16,9 @@ import seaborn as sns
 import option_chain_analytics.visuals.slices as vis
 
 # analytics
-from option_chain_analytics.chain_loader_from_ts import create_chain_from_from_options_dfs
-from option_chain_analytics.chain_ts import OptionsDataDFs
 from option_chain_analytics.option_chain import SlicesChain
+from option_chain_analytics.option_data import OptionsDataDFs
+from option_chain_analytics.reconstruction import create_chain_at_time
 
 FIG_SIZE = (8.3, 11.7)  # A4 for portrait
 
@@ -71,14 +71,14 @@ def run_unit_test(unit_test: UnitTests):
     """Build and save the selected local chain-report case."""
 
     from option_chain_analytics import local_path as lp
-    from option_chain_analytics.ts_loaders import DataSource, ts_data_loader_wrapper
+    from option_chain_analytics.data.loaders import DataSource, ts_data_loader_wrapper
 
     ticker = 'BTC'
     options_data_dfs = OptionsDataDFs(**ts_data_loader_wrapper(ticker=ticker, data_source=DataSource.TARDIS_LOCAL))
 
     if unit_test == UnitTests.RUN_CHAIN_REPORT:
         value_time = pd.Timestamp('2023-02-06 08:00:00+00:00')
-        chain = create_chain_from_from_options_dfs(options_data_dfs=options_data_dfs, value_time=value_time)
+        chain = create_chain_at_time(options_data=options_data_dfs, value_time=value_time)
         figs = run_chain_report(chain=chain)
 
         qis.save_figs_to_pdf(figs=figs,

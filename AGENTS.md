@@ -42,13 +42,17 @@ capability in the package that owns it.
 ```
 src/option_chain_analytics/
   __init__.py              stable package-root exports
-  chain_ts.py              OptionsDataDFs and point-in-time observation panels
+  option_data.py           OptionsDataDFs and point-in-time observation panels
   option_chain.py          expiry slices, SlicesChain, schema enums, and chain queries
-  chain_loader_from_ts.py  reconstruction and scheduled-chain helpers
-  ts_loaders.py            local/provider adapters and normalized CBOE cache support
+  reconstruction.py        exact/previous and scheduled-chain reconstruction
+  conventions.py           option-selection and maturity/time conventions
+  data/cache.py            shared normalized-cache schema and metadata helpers
+  data/cboe.py             CBOE SPX/VIX normalization and local cache support
+  data/tardis.py           Tardis histories and exact-time EOD cache support
+  data/deribit.py          public Deribit fetching and local-history loading
+  data/loaders.py          DataSource dispatcher across provider adapters
   data/                    simulated data and optional provider modules
-  fitters/                 option-surface fitters
-  utils/                   maturity rolls, numerics, forwards, and payoffs
+  utils/                   maturity rolls, parity forwards/discounts, numerics, and payoffs
   visuals/                 chain reports and plots
 tests/                     offline and optional-integration tests
 examples/                  repository-only runnable examples
@@ -56,8 +60,9 @@ docs/                      Sphinx documentation
 tools/                     distribution verification
 ```
 
-The root `data/`, `agents/`, and `outputs/` directories are ignored. They contain local datasets,
-agent work products, and generated research output and are excluded from distributions.
+The root `data/`, `resources/`, `agents/`, and `outputs/` directories are ignored. They contain raw
+local datasets, normalized reusable caches, agent work products, and generated research output and
+are excluded from distributions.
 
 ## Commands
 
@@ -72,7 +77,7 @@ python tools/verify_distribution.py dist
 ```
 
 Install `.[cboe]` for Feather/Parquet CBOE data, or the relevant provider extra (`deribit`,
-`yahoo`, `ccxt`, `bloomberg`, `fitters`). Supported Python is >= 3.10; CI runs tests and lint on
+`bloomberg`, `thetadata`). Supported Python is >= 3.10; CI runs tests and lint on
 Python 3.10–3.14. CI also builds the documentation and verifies both wheel and source distribution.
 
 ## Conventions
@@ -89,6 +94,8 @@ Python 3.10–3.14. CI also builds the documentation and verifies both wheel and
   using simulated data must not require Bloomberg, Yahoo, Deribit, or other optional services.
 - Runnable examples live under root `examples/`, use the public API where possible, and do not
   require private data unless clearly labelled as local diagnostics.
+- Every runnable example defines a `LocalTests` enum and a `run_local_test(local_test=...)`
+  dispatcher, with the selected default invoked explicitly under the `__main__` guard.
 - Public docstrings use NumPy style. Provider transformations document source timezones, price
   units, and any inferred fields.
 
@@ -125,9 +132,11 @@ Python 3.10–3.14. CI also builds the documentation and verifies both wheel and
 
 ## Paths and data licensing
 
-`OCA_DATA_PATH` points to the local data root containing provider subdirectories such as
-`cboe_options/`; `OCA_OUTPUT_PATH` points to generated output. With no override, a source checkout
-uses ignored root `data/` and `outputs/` directories. Do not introduce absolute machine paths.
+`OCA_DATA_PATH` points to raw provider inputs, `OCA_CACHE_PATH` points to normalized reusable
+chains, and `OCA_OUTPUT_PATH` points to generated output. With no override, a source checkout uses
+ignored root `data/`, `resources/`, and `outputs/` directories. Default CBOE/Tardis loaders validate
+central caches against their separate raw sources; custom provider directories retain co-located
+caches. Do not introduce absolute machine paths.
 
 - Never commit vendor data, CBOE source files, normalized caches, credentials, database
   dumps, calibration output, or generated figures.
@@ -247,8 +256,8 @@ maintainer explicitly asking for a release.
 
 ## Known issues and compatibility surfaces
 
-- `create_chain_from_from_options_dfs` contains a historical doubled `from` in its public name.
-  Preserve it unless a separately approved deprecation/migration introduces a corrected alias.
+- OCA 5.0 intentionally removed the historical `chain_loader_from_ts`, `chain_ts`, and `config`
+  module paths. New downstream code imports stable symbols from the package root.
 - The CBOE loader and normalized public cache builder are `load_local_cboe_options_data` and
   `build_local_cboe_options_cache`.
 - The CBOE cache path requires the `cboe` extra (`pyarrow`); cache round-trip tests skip when that

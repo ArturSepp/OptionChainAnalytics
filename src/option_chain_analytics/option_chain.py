@@ -19,7 +19,11 @@ import vanilla_option_pricers as bsm
 from numba.typed import List
 
 # analytics
-from option_chain_analytics.config import NearestStrikeOnGrid, StrikeSelection, compute_time_to_maturity
+from option_chain_analytics.conventions import (
+    NearestStrikeOnGrid,
+    StrikeSelection,
+    compute_time_to_maturity,
+)
 
 
 class SliceColumn(str, Enum):
@@ -286,10 +290,19 @@ class ExpirySlice:
         return vols, log_strikes
 
     def get_atm_vol(self, nearest_strike_on_grid: NearestStrikeOnGrid = NearestStrikeOnGrid.MAX_OI) -> float:
-        atm_strike = self.get_atm_option_strike(nearest_strike_on_grid=nearest_strike_on_grid)
-        call_vol = self.calls.loc[atm_strike, SliceColumn.MARK_IV]
-        put_vol = self.puts.loc[atm_strike, SliceColumn.MARK_IV]
-        return 0.5*(call_vol+put_vol)
+        contract_ids = (
+            self.get_atm_call_id(nearest_strike_on_grid=nearest_strike_on_grid),
+            self.get_atm_put_id(nearest_strike_on_grid=nearest_strike_on_grid),
+        )
+        vols = [
+            self.options_df.loc[
+                self.options_df[SliceColumn.CONTRACT].eq(contract_id),
+                SliceColumn.MARK_IV,
+            ].iloc[0]
+            for contract_id in contract_ids
+            if contract_id is not None
+        ]
+        return float(np.nanmean(vols)) if vols else np.nan
 
     def get_atm_option_strike(self,
                               nearest_strike_on_grid: NearestStrikeOnGrid = NearestStrikeOnGrid.MAX_OI
@@ -306,21 +319,38 @@ class ExpirySlice:
         else:
             return None
 
-    def get_atm_call_id(self, nearest_strike_on_grid: NearestStrikeOnGrid = NearestStrikeOnGrid.MAX_OI) -> Optional[str]:
-        strike = self.get_atm_option_strike(nearest_strike_on_grid=nearest_strike_on_grid)
-        if strike is not None:
-            if strike not in self.calls.index:  # MAX_OI may not work sometimes for joint slice
-                strike = self.get_atm_option_strike(nearest_strike_on_grid=NearestStrikeOnGrid.BELOW)
-            return self.calls.loc[strike, SliceColumn.CONTRACT]
-        else:
+    def _get_atm_contract_id(
+        self,
+        option_slice: pd.DataFrame,
+        nearest_strike_on_grid: NearestStrikeOnGrid,
+    ) -> Optional[str]:
+        """Return the selected ATM contract, tolerating asymmetric strike grids."""
+        if option_slice.empty:
             return None
+        target_strike = self.get_atm_option_strike(nearest_strike_on_grid=nearest_strike_on_grid)
+        if target_strike is None:
+            target_strike = self.forward
+        if target_strike not in option_slice.index:
+            strikes = option_slice.index.to_numpy(float)
+            idx = find_idx_nearest_element(
+                value=target_strike,
+                a=strikes,
+                nearest_strike_on_grid=NearestStrikeOnGrid.NEAREST,
+            )
+            target_strike = option_slice.index[idx]
+        return option_slice.loc[target_strike, SliceColumn.CONTRACT]
+
+    def get_atm_call_id(self, nearest_strike_on_grid: NearestStrikeOnGrid = NearestStrikeOnGrid.MAX_OI) -> Optional[str]:
+        return self._get_atm_contract_id(
+            option_slice=self.get_call_slice(is_filtered=True),
+            nearest_strike_on_grid=nearest_strike_on_grid,
+        )
 
     def get_atm_put_id(self, nearest_strike_on_grid: NearestStrikeOnGrid = NearestStrikeOnGrid.MAX_OI) -> Optional[str]:
-        strike = self.get_atm_option_strike(nearest_strike_on_grid=nearest_strike_on_grid)
-        if strike is not None:
-            return self.puts.loc[strike, SliceColumn.CONTRACT]
-        else:
-            return None
+        return self._get_atm_contract_id(
+            option_slice=self.get_put_slice(is_filtered=True),
+            nearest_strike_on_grid=nearest_strike_on_grid,
+        )
 
     def get_put_delta_strike(self,
                              delta: float = -0.25,

@@ -6,6 +6,7 @@ testing/
 /agents/
 /data/
 /outputs/
+/resources/
 
 # created by virtualenv automatically
 /pyvenv.cfg

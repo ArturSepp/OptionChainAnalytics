@@ -1,9 +1,13 @@
 """Display ATM volatility or delta skew from a ThetaData EOD option chain.
 
 The default path uses a synthetic deterministic injected client and needs no
-credentials or network. Pass ``--live`` after installing ``option-chain-analytics[thetadata]``
-and configuring the official ThetaData client's authentication. A live query
-requires a ticker, historical report date, and option expiration.
+credentials or network. Pass ``--live`` after installing
+``option-chain-analytics[thetadata]`` and configuring the official ThetaData
+client's authentication. A live query requires a ticker, historical report
+date, and option expiration::
+
+    python examples/fetch_thetadata_eod.py
+    python examples/fetch_thetadata_eod.py --live --ticker AAPL --value-date 2026-07-24 --expiration 2026-08-21 --metric both
 """
 
 from __future__ import annotations
@@ -12,6 +16,7 @@ import argparse
 import math
 from dataclasses import dataclass
 from datetime import date
+from enum import Enum
 from typing import Literal
 
 import pandas as pd
@@ -20,9 +25,15 @@ import vanilla_option_pricers as bsm
 from option_chain_analytics import (
     OptionsDataDFs,
     SliceColumn,
-    create_chain_from_from_options_dfs,
+    create_chain_at_time,
     load_thetadata_eod_options_data,
 )
+
+
+class LocalTests(Enum):
+    """Runnable cases for the single-date ThetaData example."""
+
+    THETADATA_EOD = 1
 
 
 @dataclass
@@ -179,7 +190,7 @@ def display_thetadata_eod_metrics(
     )
     options_data = OptionsDataDFs(**mapped)
     value_time = options_data.get_timeindex()[0]
-    chain = create_chain_from_from_options_dfs(options_data_dfs=options_data, value_time=value_time)
+    chain = create_chain_at_time(options_data=options_data, value_time=value_time)
     if chain is None:
         raise RuntimeError('ThetaData normalization did not produce a reconstructable chain')
 
@@ -230,7 +241,8 @@ def display_thetadata_eod_metrics(
     return result
 
 
-def main() -> None:
+def _run_thetadata_eod() -> None:
+    """Parse CLI inputs and display the requested ThetaData EOD metrics."""
     args = _parse_args()
     display_thetadata_eod_metrics(
         ticker=args.ticker,
@@ -242,5 +254,14 @@ def main() -> None:
     )
 
 
+def run_local_test(local_test: LocalTests) -> None:
+    """Run one selected local example case."""
+    if local_test == LocalTests.THETADATA_EOD:
+        _run_thetadata_eod()
+    else:
+        raise NotImplementedError(f'unsupported local test: {local_test}')
+
+
 if __name__ == '__main__':
-    main()
+
+    run_local_test(local_test=LocalTests.THETADATA_EOD)

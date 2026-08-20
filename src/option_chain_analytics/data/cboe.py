@@ -1,13 +1,26 @@
-"""Normalize local/provider option histories into OCA time-series containers.
+"""Normalize local CBOE SPX and VIX histories into auditable OCA panels.
 
-The module exposes a common loader dispatcher plus source-specific adapters for
-Tardis, Deribit, CBOE, and optional ThetaData inputs. Local source and cache
-directories derive from :mod:`option_chain_analytics.local_path`; normalized
-adapters return ``chain_ts``, aligned ``spot_data``, and ``ticker`` suitable for
-``OptionsDataDFs(**result)``.
+The adapter consumes the maintainer's daily fitted-chain Feather files, but it
+does not trust their legacy fitted forward, discount, or volatility fields.
+For every observation/expiry slice it rebuilds the quote midpoint, robustly
+infers forward and discount from call-put parity, and computes implied
+volatility, forward delta, and present-value vega with
+``vanilla-option-pricers``.
+
+Product conventions are explicit. SPX is treated as PM-settled SPXW at 16:00
+New York, whereas VIX uses its 09:30 New York morning SOQ. Observation and
+expiry timestamps are converted to UTC before the complete ``SliceColumn``
+schema is produced. CBOE files contain no independent spot history; callers
+must supply one for return studies or explicitly request the front-forward
+visualization proxy.
+
+``build_local_cboe_options_cache`` streams large sources into fingerprinted,
+Zstandard-compressed Parquet without splitting a quote slice across batches.
+``load_local_cboe_options_data`` validates and predicate-filters that cache, or
+applies the identical reconstruction path directly to bounded source rows.
+Neither the licensed source files nor normalized caches are distributed.
 """
 
-from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, Literal, Optional, Union
 
@@ -15,17 +28,20 @@ import numpy as np
 import pandas as pd
 import qis
 
-# public data api
 from option_chain_analytics import local_path as lp
+from option_chain_analytics.data.cache import (
+    NORMALIZED_OPTIONS_CACHE_FORMAT,
+    NORMALIZED_OPTIONS_CACHE_SCHEMA_VERSION,
+    NORMALIZED_OPTIONS_DTYPE_POLICY,
+    _coerce_oca_options_frame,
+    _normalized_cache_directory,
+    _read_cache_metadata,
+    _to_oca_options_arrow_table,
+)
 from option_chain_analytics.option_chain import SliceColumn
 
-DERIBIT_LOCAL_PATH = f"{lp.get_resource_path()}deribit\\"
-TARDIS_FILES_LOCAL_PATH = f"{lp.get_resource_path()}tardis\\"
 CBOE_FILES_LOCAL_PATH = f"{lp.get_resource_path()}cboe_options\\"
-
-NORMALIZED_OPTIONS_CACHE_FORMAT = 'option_chain_analytics.options.normalized'
-NORMALIZED_OPTIONS_CACHE_SCHEMA_VERSION = '3'
-NORMALIZED_OPTIONS_DTYPE_POLICY = 'slice_column_string_timestamp_utc_float64_v1'
+CBOE_CACHE_LOCAL_PATH = f"{lp.get_cache_path()}cboe_options\\"
 
 CBOE_CACHE_FORMAT = NORMALIZED_OPTIONS_CACHE_FORMAT
 CBOE_CACHE_SCHEMA_VERSION = NORMALIZED_OPTIONS_CACHE_SCHEMA_VERSION
@@ -44,31 +60,7 @@ CBOE_PRODUCT_POLICIES = {
         'expiry_minute': 30,
     },
 }
-TARDIS_EOD_CACHE_FORMAT = NORMALIZED_OPTIONS_CACHE_FORMAT
-TARDIS_EOD_CACHE_SCHEMA_VERSION = NORMALIZED_OPTIONS_CACHE_SCHEMA_VERSION
-TARDIS_EOD_ANALYTICS_POLICY = 'provider_iv_greeks_discount_one'
-TARDIS_EOD_SPOT_POLICY = 'exact_perpetual_index_then_option_index'
-TARDIS_EOD_SOURCE_FILE_NAMES = {'BTC': 'BTC_freq_H.feather', 'ETH': 'ETH_freq_H.feather'}
-TARDIS_EOD_SPOT_FILE_NAMES = {'BTC': 'BTC_perp_freq_H.feather', 'ETH': 'ETH_perp_freq_H.feather'}
-TARDIS_EOD_CACHE_FILE_NAMES = {'BTC': 'btc_options_oca.parquet', 'ETH': 'eth_options_oca.parquet'}
-TARDIS_EOD_HOUR_UTC = 8
 SECONDS_PER_YEAR = 365.0 * 24.0 * 60.0 * 60.0
-
-OCA_STRING_COLUMNS = (
-    SliceColumn.CONTRACT.value,
-    SliceColumn.UNDERLYING_INDEX.value,
-    SliceColumn.MATURITY_ID.value,
-    SliceColumn.OPTION_TYPE.value,
-)
-OCA_TIMESTAMP_COLUMNS = (
-    SliceColumn.EXCHANGE_TIME.value,
-    SliceColumn.EXPIRY.value,
-)
-OCA_NUMERIC_COLUMNS = tuple(
-    column.value
-    for column in SliceColumn
-    if column.value not in OCA_STRING_COLUMNS and column.value not in OCA_TIMESTAMP_COLUMNS
-)
 
 CBOE_SOURCE_COLUMNS = (
     'exdate',
@@ -88,152 +80,6 @@ CBOE_SOURCE_COLUMNS = (
     'vega',
     'delta',
 )
-TARDIS_EOD_SOURCE_COLUMNS = (
-    'contract',
-    'exchange_time',
-    'underlying_index',
-    'underlying_price',
-    'usd_multiplier',
-    'mark_price',
-    'bid_price',
-    'ask_price',
-    'bid_size',
-    'ask_size',
-    'mark_iv',
-    'bid_iv',
-    'ask_iv',
-    'delta',
-    'vega',
-    'theta',
-    'gamma',
-    'open_interest',
-    'volume',
-    'mat_id',
-    'strike',
-    'optiontype',
-    'expiry',
-    'ttm',
-    'contract_size',
-    'interest_rate',
-)
-
-
-def _coerce_oca_options_frame(chain_ts: pd.DataFrame) -> pd.DataFrame:
-    """Return one canonical pandas representation of the ``SliceColumn`` schema."""
-    columns = [column.value for column in SliceColumn]
-    missing = set(columns).difference(chain_ts.columns)
-    if missing:
-        raise ValueError(f"missing OCA option columns: {sorted(missing)}")
-
-    chain_ts = chain_ts.loc[:, columns].copy()
-    for column in OCA_STRING_COLUMNS:
-        chain_ts[column] = chain_ts[column].astype('string')
-    for column in OCA_TIMESTAMP_COLUMNS:
-        chain_ts[column] = pd.to_datetime(chain_ts[column], utc=True)
-    for column in OCA_NUMERIC_COLUMNS:
-        chain_ts[column] = pd.to_numeric(chain_ts[column], errors='coerce').astype('float64')
-    return chain_ts
-
-
-def _get_oca_options_arrow_schema() -> Any:
-    """Return the provider-neutral physical Parquet schema for option observations."""
-    import pyarrow as pa
-
-    fields = []
-    for column in SliceColumn:
-        if column.value in OCA_STRING_COLUMNS:
-            dtype = pa.string()
-        elif column.value in OCA_TIMESTAMP_COLUMNS:
-            dtype = pa.timestamp('ns', tz='UTC')
-        else:
-            dtype = pa.float64()
-        fields.append(pa.field(column.value, dtype))
-    return pa.schema(fields)
-
-
-def _to_oca_options_arrow_table(chain_ts: pd.DataFrame, metadata: Dict[bytes, bytes]) -> Any:
-    """Convert a canonical option panel to an Arrow table with OCA metadata."""
-    import pyarrow as pa
-
-    table = pa.Table.from_pandas(
-        _coerce_oca_options_frame(chain_ts),
-        schema=_get_oca_options_arrow_schema(),
-        preserve_index=False,
-        safe=True,
-    )
-    return table.replace_schema_metadata({**(table.schema.metadata or {}), **metadata})
-
-
-class DataSource(Enum):
-    """Supported local and optional-provider time-series adapters."""
-
-    TARDIS_LOCAL = 1
-    DERIBIT_LOCAL = 2
-    CBOE_LOCAL = 3
-    THETADATA_EOD = 4
-    TARDIS_EOD_LOCAL = 5
-
-
-def ts_data_loader_wrapper(data_source: DataSource = DataSource.TARDIS_LOCAL,
-                           ticker: str = 'BTC',
-                           **kwargs
-                           ) -> Dict[str, Any]:
-    """Load one provider source into the ``OptionsDataDFs`` constructor schema."""
-    if data_source == DataSource.TARDIS_LOCAL:
-        return load_local_tardis_contract_ts_data(ticker=ticker, **kwargs)
-
-    elif data_source == DataSource.DERIBIT_LOCAL:
-        return load_local_deribit_contract_ts_data(ticker=ticker, **kwargs)
-
-    elif data_source == DataSource.CBOE_LOCAL:
-        return load_local_cboe_options_data(ticker=ticker, **kwargs)
-
-    elif data_source == DataSource.THETADATA_EOD:
-        from option_chain_analytics.data.thetadata import load_thetadata_eod_options_data
-
-        return load_thetadata_eod_options_data(ticker=ticker, **kwargs)
-
-    elif data_source == DataSource.TARDIS_EOD_LOCAL:
-        return load_local_tardis_eod_options_data(ticker=ticker, **kwargs)
-
-    else:
-        raise NotImplementedError(f"{data_source}")
-
-
-@qis.timer
-def load_local_tardis_contract_ts_data(ticker: str = 'BTC',
-                                       local_path: str = TARDIS_FILES_LOCAL_PATH
-                                       ) -> Dict[str, Any]:
-    """
-    this loader is using prop data in feather
-    """
-    chain_ts = qis.load_df_from_feather(file_name=f"{ticker}_freq_H",
-                                        index_col=None,
-                                        local_path=local_path)
-    if 'forward_price' not in chain_ts.columns:  # for consistency with old anlytics
-        chain_ts['forward_price'] = chain_ts['underlying_price']
-
-    spot_data = qis.load_df_from_feather(file_name=f"{ticker}_perp_freq_H",
-                                         index_col='timestamp',
-                                         local_path=local_path)
-    return dict(chain_ts=chain_ts, spot_data=spot_data, ticker=ticker)
-
-
-@qis.timer
-def load_local_deribit_contract_ts_data(ticker: Union[str, Literal['BTC', 'ETH']] = 'BTC',
-                                        local_path: str = DERIBIT_LOCAL_PATH
-                                        ) -> Dict[str, Any]:
-    """
-    this loader is using deribit public data in feather
-    """
-    file_path = f"{local_path}{ticker}_appended_options.feather"  # same as in get_deribit_appended_file_path
-    chain_ts = qis.load_df_from_feather(local_path=file_path, index_col=None)
-    if 'forward_price' not in chain_ts.columns:
-        chain_ts['forward_price'] = chain_ts['underlying_price']
-
-    spot_data = qis.load_df_from_feather(file_name=f"{ticker}_perp_data", local_path=TARDIS_FILES_LOCAL_PATH)
-    return dict(chain_ts=chain_ts, spot_data=spot_data, ticker=ticker)
-
 
 def _to_new_york_naive(timestamp: Optional[pd.Timestamp], is_end: bool = False) -> Optional[pd.Timestamp]:
     """Convert a filter boundary to timezone-naive New York source time."""
@@ -286,6 +132,15 @@ def _cboe_file_path(ticker: str, local_path: str, file_names: Dict[str, str]) ->
         raise ValueError(f"unsupported CBOE option ticker={ticker}")
     return Path(local_path).joinpath(file_names[ticker])
 
+def _cboe_cache_path(ticker: str, local_path: str) -> Path:
+    """Resolve a CBOE cache centrally while preserving custom co-located paths."""
+    cache_directory = _normalized_cache_directory(
+        local_path=local_path,
+        default_source_path=CBOE_FILES_LOCAL_PATH,
+        default_cache_path=CBOE_CACHE_LOCAL_PATH,
+    )
+    return _cboe_file_path(ticker=ticker, local_path=cache_directory, file_names=CBOE_CACHE_FILE_NAMES)
+
 
 def _cboe_cache_metadata(ticker: str, source_path: Path) -> Dict[bytes, bytes]:
     """Build cache metadata including schema, policy, and source fingerprint."""
@@ -310,17 +165,9 @@ def _cboe_cache_metadata(ticker: str, source_path: Path) -> Dict[bytes, bytes]:
     return {key.encode(): value.encode() for key, value in values.items()}
 
 
-def _read_cboe_cache_metadata(cache_path: Path) -> Dict[str, str]:
-    """Read decoded OCA metadata from a normalized Parquet cache."""
-    import pyarrow.parquet as pq
-
-    raw_metadata = pq.ParquetFile(cache_path).metadata.metadata or {}
-    return {key.decode(): value.decode() for key, value in raw_metadata.items() if key.startswith(b'oca_')}
-
-
 def _validate_cboe_cache(cache_path: Path, ticker: str, source_path: Path) -> None:
     """Reject a CBOE cache whose policy, schema, or fingerprint is stale."""
-    metadata = _read_cboe_cache_metadata(cache_path=cache_path)
+    metadata = _read_cache_metadata(cache_path=cache_path)
     policy = _get_cboe_product_policy(ticker=ticker)
     expected = {
         'oca_cache_format': CBOE_CACHE_FORMAT,
@@ -433,7 +280,7 @@ def _compute_cboe_ttm(source: pd.DataFrame, ticker: str) -> pd.Series:
 
 def _infer_cboe_slice_forward_discount(frame: pd.DataFrame) -> Optional[tuple[float, float]]:
     """Infer one expiry slice's forward and discount from paired bid/ask quotes."""
-    from option_chain_analytics.fitters.forward_discount import imply_forward_discount_from_bid_ask_prices
+    from option_chain_analytics.utils.forward_discount import imply_forward_discount_from_bid_ask_prices
 
     quote_columns = ['best_bid', 'best_offer']
     calls = (
@@ -551,6 +398,27 @@ def reconstruct_cboe_source_analytics(
     implied volatility, forward delta, and present-value vega are then computed
     with ``vanilla-option-pricers``. Expiry and time to maturity follow SPXW PM
     settlement for ``SPX`` and morning SOQ settlement for ``VIX``.
+
+    Parameters
+    ----------
+    source : pandas.DataFrame
+        CBOE source rows containing every field in ``CBOE_SOURCE_COLUMNS``.
+        ``date`` and ``exdate`` are interpreted under the provider's New York
+        local-time convention.
+    ticker : {'SPX', 'VIX'}, default 'SPX'
+        Product policy used for expiry time and contract validation.
+
+    Returns
+    -------
+    pandas.DataFrame
+        A source-shaped copy with reconstructed ``mid_price``, ``impl_fw``,
+        ``impl_df``, ``mid_vols``, ``delta``, ``vega``, and year-fraction ``dte``.
+        Slices without a valid parity fit are omitted.
+
+    Raises
+    ------
+    ValueError
+        If ``ticker`` is unsupported or required source columns are missing.
     """
     ticker = ticker.upper()
     _get_cboe_product_policy(ticker=ticker)
@@ -739,6 +607,31 @@ def map_cboe_options_data(source: pd.DataFrame,
     trusting the legacy fitted ``dte``. The source has no spot series or
     bid/ask implied volatilities, so those volatilities are inferred from prices
     using the contemporaneous forward, discount factor, and time to maturity.
+
+    Parameters
+    ----------
+    source : pandas.DataFrame
+        Reconstructed CBOE rows, normally returned by
+        :func:`reconstruct_cboe_source_analytics`.
+    ticker : {'SPX', 'VIX'}, default 'SPX'
+        CBOE product whose settlement and contract-size conventions are applied.
+    spot_data : pandas.Series or pandas.DataFrame, optional
+        Independently sourced spot history. A series is interpreted as ``close``;
+        a frame must expose or be reducible to the same aligned price column.
+    is_use_front_forward_as_spot : bool, default False
+        Construct an explicitly labelled front-forward proxy when independent
+        spot is unavailable. This is intended for visualization, not returns.
+
+    Returns
+    -------
+    dict[str, Any]
+        Complete canonical ``chain_ts``, aligned ``spot_data``, and ``ticker``
+        suitable for ``OptionsDataDFs(**result)``.
+
+    Raises
+    ------
+    ValueError
+        If the product, source schema, or option-type values are unsupported.
     """
     ticker = ticker.upper()
     if ticker not in ('SPX', 'VIX'):
@@ -843,7 +736,9 @@ def build_local_cboe_options_cache(ticker: Union[str, Literal['SPX', 'VIX']] = '
     ticker : {'SPX', 'VIX'}, default 'SPX'
         CBOE underlying to normalize.
     local_path : str, default ``CBOE_FILES_LOCAL_PATH``
-        Directory containing both source files and normalized caches.
+        Directory containing source files. With the default source path, the
+        normalized cache is written under ``OCA_CACHE_PATH/cboe_options``;
+        custom directories retain co-located source and cache files.
     overwrite : bool, default False
         Replace an existing cache atomically when True.
 
@@ -860,7 +755,7 @@ def build_local_cboe_options_cache(ticker: Union[str, Literal['SPX', 'VIX']] = '
 
     ticker = ticker.upper()
     source_path = _cboe_file_path(ticker=ticker, local_path=local_path, file_names=CBOE_SOURCE_FILE_NAMES)
-    cache_path = _cboe_file_path(ticker=ticker, local_path=local_path, file_names=CBOE_CACHE_FILE_NAMES)
+    cache_path = _cboe_cache_path(ticker=ticker, local_path=local_path)
     if cache_path.exists() and not overwrite:
         raise FileExistsError(f"CBOE cache already exists: {cache_path}")
     if not source_path.exists():
@@ -926,10 +821,43 @@ def load_local_cboe_options_data(ticker: Union[str, Literal['SPX', 'VIX']] = 'SP
     A validated normalized Parquet cache is preferred when present. Without a
     cache, the selected source rows receive the same parity and BSM reconstruction
     before mapping. Set ``is_use_cache=False`` to bypass a cache explicitly.
+
+    Parameters
+    ----------
+    ticker : {'SPX', 'VIX'}, default 'SPX'
+        CBOE option root to load.
+    local_path : str, default CBOE_FILES_LOCAL_PATH
+        Directory containing the source Feather file. With the configured
+        default, normalized caches resolve separately below ``OCA_CACHE_PATH``.
+    start, end : pandas.Timestamp, optional
+        Inclusive observation bounds. Naive values are interpreted in New York
+        source time; aware values are converted to New York before source reads
+        and to UTC for normalized-cache filters.
+    spot_data : pandas.Series or pandas.DataFrame, optional
+        Independent spot observations to align to option report timestamps.
+    is_use_front_forward_as_spot : bool, default False
+        Use the front expiry forward as an explicitly labelled plotting proxy
+        when no independent spot series is supplied.
+    is_use_cache : bool, default True
+        Prefer a present, compatible normalized Parquet cache. ``False`` forces
+        reconstruction from the source file for the requested window.
+
+    Returns
+    -------
+    dict[str, Any]
+        Canonical ``chain_ts``, aligned ``spot_data``, and ``ticker`` suitable
+        for ``OptionsDataDFs(**result)``.
+
+    Raises
+    ------
+    FileNotFoundError
+        If neither the selected source path nor required cache input is present.
+    ValueError
+        If a cache fingerprint/policy is stale or source normalization fails.
     """
     ticker = ticker.upper()
     source_path = _cboe_file_path(ticker=ticker, local_path=local_path, file_names=CBOE_SOURCE_FILE_NAMES)
-    cache_path = _cboe_file_path(ticker=ticker, local_path=local_path, file_names=CBOE_CACHE_FILE_NAMES)
+    cache_path = _cboe_cache_path(ticker=ticker, local_path=local_path)
     if is_use_cache and cache_path.exists():
         chain_ts = _load_cboe_cache_frame(
             cache_path=cache_path,
@@ -957,365 +885,3 @@ def load_local_cboe_options_data(ticker: Union[str, Literal['SPX', 'VIX']] = 'SP
         spot_data=spot_data,
         is_use_front_forward_as_spot=is_use_front_forward_as_spot,
     )
-
-
-def _tardis_eod_file_path(ticker: str, local_path: str, file_names: Dict[str, str]) -> Path:
-    """Resolve one supported Tardis ticker to its source or cache file path."""
-    ticker = ticker.upper()
-    if ticker not in file_names:
-        raise ValueError(f"unsupported Tardis EOD option ticker={ticker}")
-    return Path(local_path).joinpath(file_names[ticker])
-
-
-def _tardis_eod_observation_policy(daily_hour_utc: int) -> str:
-    """Validate and serialize the exact daily UTC observation policy."""
-    if not 0 <= daily_hour_utc <= 23:
-        raise ValueError('daily_hour_utc must be between 0 and 23')
-    return f'exact_{daily_hour_utc:02d}00_utc'
-
-
-def _tardis_eod_cache_metadata(
-    ticker: str,
-    source_path: Path,
-    spot_source_path: Path,
-    daily_hour_utc: int,
-) -> Dict[bytes, bytes]:
-    """Build Tardis cache metadata and source/spot fingerprints."""
-    source_stat = source_path.stat()
-    spot_stat = spot_source_path.stat()
-    values = {
-        'oca_cache_format': TARDIS_EOD_CACHE_FORMAT,
-        'oca_cache_schema_version': TARDIS_EOD_CACHE_SCHEMA_VERSION,
-        'oca_dtype_policy': NORMALIZED_OPTIONS_DTYPE_POLICY,
-        'oca_ticker': ticker,
-        'oca_provider': 'tardis_deribit',
-        'oca_frequency': 'eod',
-        'oca_observation_policy': _tardis_eod_observation_policy(daily_hour_utc),
-        'oca_price_convention': 'inverse_underlying_units_usd_multiplier_forward',
-        'oca_spot_policy': TARDIS_EOD_SPOT_POLICY,
-        'oca_settlement_policy': 'deribit_0800_utc',
-        'oca_analytics': TARDIS_EOD_ANALYTICS_POLICY,
-        'oca_source_file': source_path.name,
-        'oca_source_size': str(source_stat.st_size),
-        'oca_source_mtime_ns': str(source_stat.st_mtime_ns),
-        'oca_spot_source_file': spot_source_path.name,
-        'oca_spot_source_size': str(spot_stat.st_size),
-        'oca_spot_source_mtime_ns': str(spot_stat.st_mtime_ns),
-        'oca_created_utc': pd.Timestamp.now(tz='UTC').isoformat(),
-    }
-    return {key.encode(): value.encode() for key, value in values.items()}
-
-
-def _validate_tardis_eod_cache(
-    cache_path: Path,
-    ticker: str,
-    source_path: Path,
-    spot_source_path: Path,
-    daily_hour_utc: int,
-) -> None:
-    """Reject a Tardis cache whose policy, schema, or fingerprint is stale."""
-    metadata = _read_cboe_cache_metadata(cache_path=cache_path)
-    expected = {
-        'oca_cache_format': TARDIS_EOD_CACHE_FORMAT,
-        'oca_cache_schema_version': TARDIS_EOD_CACHE_SCHEMA_VERSION,
-        'oca_dtype_policy': NORMALIZED_OPTIONS_DTYPE_POLICY,
-        'oca_ticker': ticker,
-        'oca_provider': 'tardis_deribit',
-        'oca_frequency': 'eod',
-        'oca_observation_policy': _tardis_eod_observation_policy(daily_hour_utc),
-        'oca_price_convention': 'inverse_underlying_units_usd_multiplier_forward',
-        'oca_spot_policy': TARDIS_EOD_SPOT_POLICY,
-        'oca_settlement_policy': 'deribit_0800_utc',
-        'oca_analytics': TARDIS_EOD_ANALYTICS_POLICY,
-    }
-    for prefix, path in (('oca_source', source_path), ('oca_spot_source', spot_source_path)):
-        if path.exists():
-            stat = path.stat()
-            expected.update(
-                {
-                    f'{prefix}_file': path.name,
-                    f'{prefix}_size': str(stat.st_size),
-                    f'{prefix}_mtime_ns': str(stat.st_mtime_ns),
-                }
-            )
-    mismatches = {
-        key: (metadata.get(key), value)
-        for key, value in expected.items()
-        if metadata.get(key) != value
-    }
-    if mismatches:
-        details = ', '.join(
-            f"{key}={actual!r} (expected {expected_value!r})"
-            for key, (actual, expected_value) in mismatches.items()
-        )
-        raise ValueError(
-            f'incompatible or stale Tardis EOD cache {cache_path}: {details}. '
-            'Rebuild it with build_local_tardis_eod_options_cache(..., overwrite=True).'
-        )
-
-
-def _load_tardis_spot_series(spot_source_path: Path) -> pd.Series:
-    """Load and clean the exact-time Deribit index-price series."""
-    spot = pd.read_feather(spot_source_path, columns=['timestamp', 'index_price'])
-    spot['timestamp'] = pd.to_datetime(spot['timestamp'], utc=True)
-    spot['index_price'] = pd.to_numeric(spot['index_price'], errors='coerce')
-    spot = spot.dropna(subset=['timestamp', 'index_price']).drop_duplicates('timestamp', keep='last')
-    return spot.set_index('timestamp')['index_price'].sort_index()
-
-
-def _map_tardis_eod_options_data(source: pd.DataFrame, ticker: str, spot: pd.Series) -> pd.DataFrame:
-    """Map filtered Tardis rows to the canonical ``SliceColumn`` schema."""
-    missing = set(TARDIS_EOD_SOURCE_COLUMNS).difference(source.columns)
-    if missing:
-        raise ValueError(f"missing Tardis option columns: {sorted(missing)}")
-
-    exchange_time = pd.to_datetime(source['exchange_time'], utc=True)
-    expiry = pd.to_datetime(source['expiry'], utc=True)
-    option_type = source['optiontype'].astype('string').str.upper()
-    if option_type.isna().any() or not option_type.isin(('C', 'P')).all():
-        raise ValueError(f"unsupported option types: {sorted(option_type.dropna().unique())}")
-    ttm = ((expiry - exchange_time).dt.total_seconds() / SECONDS_PER_YEAR).clip(lower=0.0)
-    spot_price = exchange_time.map(spot)
-    if spot_price.isna().any():
-        is_index_price = source['underlying_index'].astype('string').eq('index_price')
-        option_spot = pd.DataFrame(
-            {
-                'exchange_time': exchange_time.loc[is_index_price],
-                'underlying_price': pd.to_numeric(
-                    source.loc[is_index_price, 'underlying_price'],
-                    errors='coerce',
-                ),
-            }
-        ).groupby('exchange_time', observed=True)['underlying_price'].median()
-        spot_price = spot_price.fillna(exchange_time.map(option_spot))
-    if spot_price.isna().any():
-        missing_times = exchange_time.loc[spot_price.isna()].drop_duplicates().sort_values()
-        preview = ', '.join(str(value) for value in missing_times.iloc[:3])
-        raise ValueError(f'missing exact Tardis index price for {len(missing_times.index)} observations: {preview}')
-
-    chain_ts = pd.DataFrame(
-        {
-            SliceColumn.CONTRACT.value: source['contract'],
-            SliceColumn.EXCHANGE_TIME.value: exchange_time,
-            SliceColumn.UNDERLYING_INDEX.value: source['underlying_index'],
-            SliceColumn.FORWARD_PRICE.value: source['underlying_price'],
-            SliceColumn.SPOT_PRICE.value: spot_price,
-            SliceColumn.USD_MULTIPLIER.value: source['usd_multiplier'],
-            SliceColumn.MARK_PRICE.value: source['mark_price'],
-            SliceColumn.BID_PRICE.value: source['bid_price'],
-            SliceColumn.ASK_PRICE.value: source['ask_price'],
-            SliceColumn.BID_SIZE.value: source['bid_size'],
-            SliceColumn.ASK_SIZE.value: source['ask_size'],
-            SliceColumn.MARK_IV.value: source['mark_iv'],
-            SliceColumn.BID_IV.value: source['bid_iv'],
-            SliceColumn.ASK_IV.value: source['ask_iv'],
-            SliceColumn.DELTA.value: source['delta'],
-            SliceColumn.VEGA.value: source['vega'],
-            SliceColumn.THETA.value: source['theta'],
-            SliceColumn.GAMMA.value: source['gamma'],
-            SliceColumn.OPEN_INTEREST.value: source['open_interest'],
-            SliceColumn.VOLUME.value: source['volume'],
-            SliceColumn.MATURITY_ID.value: expiry.dt.strftime('%d%b%Y'),
-            SliceColumn.STRIKE.value: source['strike'],
-            SliceColumn.OPTION_TYPE.value: option_type,
-            SliceColumn.EXPIRY.value: expiry,
-            SliceColumn.TTM.value: ttm,
-            SliceColumn.CONTRACT_SIZE.value: source['contract_size'],
-            SliceColumn.DISCOUNT.value: 1.0,
-        }
-    )
-    chain_ts = chain_ts.drop_duplicates(
-        subset=[SliceColumn.EXCHANGE_TIME.value, SliceColumn.CONTRACT.value],
-        keep='last',
-    )
-    return _coerce_oca_options_frame(chain_ts)
-
-
-def build_local_tardis_eod_options_cache(
-    ticker: Union[str, Literal['BTC', 'ETH']] = 'BTC',
-    local_path: str = TARDIS_FILES_LOCAL_PATH,
-    daily_hour_utc: int = TARDIS_EOD_HOUR_UTC,
-    overwrite: bool = False,
-) -> Path:
-    """Build one exact-time daily BTC/ETH option cache from the hourly Tardis archive.
-
-    The selected observation is exactly ``daily_hour_utc:00 UTC``; no prior or
-    future quote is substituted. Deribit inverse option prices remain in units
-    of BTC/ETH and ``usd_multiplier`` remains the contemporaneous forward.
-    ``spot_price`` is the exact-time Deribit index price and ``discount`` is one,
-    preserving the legacy Tardis normalization convention.
-    """
-    from uuid import uuid4
-
-    import pyarrow as pa
-    import pyarrow.ipc as ipc
-    import pyarrow.parquet as pq
-
-    ticker = ticker.upper()
-    _tardis_eod_observation_policy(daily_hour_utc)
-    source_path = _tardis_eod_file_path(ticker, local_path, TARDIS_EOD_SOURCE_FILE_NAMES)
-    spot_source_path = _tardis_eod_file_path(ticker, local_path, TARDIS_EOD_SPOT_FILE_NAMES)
-    cache_path = _tardis_eod_file_path(ticker, local_path, TARDIS_EOD_CACHE_FILE_NAMES)
-    if cache_path.exists() and not overwrite:
-        raise FileExistsError(f'Tardis EOD cache already exists: {cache_path}')
-    for path in (source_path, spot_source_path):
-        if not path.exists():
-            raise FileNotFoundError(f'Tardis source file does not exist: {path}')
-
-    source_reader = ipc.RecordBatchFileReader(pa.memory_map(str(source_path), 'r'))
-    missing = set(TARDIS_EOD_SOURCE_COLUMNS).difference(source_reader.schema.names)
-    if missing:
-        raise ValueError(f"missing Tardis option columns: {sorted(missing)}")
-    column_indices = [source_reader.schema.get_field_index(column) for column in TARDIS_EOD_SOURCE_COLUMNS]
-    frames = []
-    for batch_idx in range(source_reader.num_record_batches):
-        frame = source_reader.get_batch(batch_idx).select(column_indices).to_pandas()
-        exchange_time = pd.to_datetime(frame['exchange_time'], utc=True)
-        is_eod = (
-            exchange_time.dt.hour.eq(daily_hour_utc)
-            & exchange_time.dt.minute.eq(0)
-            & exchange_time.dt.second.eq(0)
-        )
-        if is_eod.any():
-            frames.append(frame.loc[is_eod].copy())
-    if not frames:
-        raise ValueError(f'Tardis source has no exact {_tardis_eod_observation_policy(daily_hour_utc)} rows')
-
-    chain_ts = _map_tardis_eod_options_data(
-        source=pd.concat(frames, axis=0, ignore_index=True),
-        ticker=ticker,
-        spot=_load_tardis_spot_series(spot_source_path),
-    ).sort_values(
-        [
-            SliceColumn.EXCHANGE_TIME.value,
-            SliceColumn.EXPIRY.value,
-            SliceColumn.STRIKE.value,
-            SliceColumn.OPTION_TYPE.value,
-            SliceColumn.CONTRACT.value,
-        ]
-    ).reset_index(drop=True)
-
-    cache_path.parent.mkdir(parents=True, exist_ok=True)
-    temporary_path = cache_path.with_name(f'.{cache_path.name}.{uuid4().hex}.tmp')
-    metadata = _tardis_eod_cache_metadata(ticker, source_path, spot_source_path, daily_hour_utc)
-    table = _to_oca_options_arrow_table(chain_ts=chain_ts, metadata=metadata)
-    try:
-        pq.write_table(
-            table,
-            temporary_path,
-            compression='zstd',
-            use_dictionary=list(OCA_STRING_COLUMNS),
-            write_statistics=True,
-            row_group_size=250_000,
-        )
-        temporary_path.replace(cache_path)
-    finally:
-        if temporary_path.exists():
-            temporary_path.unlink()
-    return cache_path
-
-
-def _to_tardis_cache_utc(timestamp: Optional[pd.Timestamp], is_end: bool = False) -> Optional[pd.Timestamp]:
-    """Normalize a Tardis cache filter boundary to timezone-aware UTC."""
-    if timestamp is None:
-        return None
-    timestamp = pd.Timestamp(timestamp)
-    is_date = timestamp == timestamp.normalize()
-    if timestamp.tzinfo is None:
-        timestamp = timestamp.tz_localize('UTC')
-    else:
-        timestamp = timestamp.tz_convert('UTC')
-    if is_end and is_date:
-        timestamp = timestamp + pd.Timedelta(days=1) - pd.Timedelta(nanoseconds=1)
-    return timestamp
-
-
-def _finalize_tardis_eod_options_data(chain_ts: pd.DataFrame, ticker: str) -> Dict[str, Any]:
-    """Create aligned spot data and source metadata for a Tardis EOD panel."""
-    chain_ts = _coerce_oca_options_frame(chain_ts)
-    exchange_time = SliceColumn.EXCHANGE_TIME.value
-    spot_price = SliceColumn.SPOT_PRICE.value
-    spot_data = (
-        chain_ts[[exchange_time, spot_price]]
-        .dropna(subset=[spot_price])
-        .drop_duplicates(exchange_time, keep='last')
-        .set_index(exchange_time)[spot_price]
-        .sort_index()
-        .rename('close')
-        .to_frame()
-    )
-    spot_data.attrs['spot_source'] = 'cached_exact_tardis_index_price'
-    chain_ts.attrs['source'] = 'tardis_deribit_eod'
-    chain_ts.attrs['spot_source'] = spot_data.attrs['spot_source']
-    return dict(chain_ts=chain_ts, spot_data=spot_data, ticker=ticker)
-
-
-@qis.timer
-def load_local_tardis_eod_options_data(
-    ticker: Union[str, Literal['BTC', 'ETH']] = 'BTC',
-    local_path: str = TARDIS_FILES_LOCAL_PATH,
-    start: Optional[pd.Timestamp] = None,
-    end: Optional[pd.Timestamp] = None,
-    daily_hour_utc: int = TARDIS_EOD_HOUR_UTC,
-) -> Dict[str, Any]:
-    """Load a validated exact-time BTC/ETH EOD cache in ``OptionsDataDFs`` format."""
-    ticker = ticker.upper()
-    source_path = _tardis_eod_file_path(ticker, local_path, TARDIS_EOD_SOURCE_FILE_NAMES)
-    spot_source_path = _tardis_eod_file_path(ticker, local_path, TARDIS_EOD_SPOT_FILE_NAMES)
-    cache_path = _tardis_eod_file_path(ticker, local_path, TARDIS_EOD_CACHE_FILE_NAMES)
-    if not cache_path.exists():
-        raise FileNotFoundError(
-            f'Tardis EOD cache does not exist: {cache_path}. '
-            'Build it with build_local_tardis_eod_options_cache(...).'
-        )
-    _validate_tardis_eod_cache(cache_path, ticker, source_path, spot_source_path, daily_hour_utc)
-
-    filters = []
-    exchange_time = SliceColumn.EXCHANGE_TIME.value
-    start_utc = _to_tardis_cache_utc(start)
-    end_utc = _to_tardis_cache_utc(end, is_end=True)
-    if start_utc is not None:
-        filters.append((exchange_time, '>=', start_utc))
-    if end_utc is not None:
-        filters.append((exchange_time, '<=', end_utc))
-    chain_ts = pd.read_parquet(
-        cache_path,
-        columns=[column.value for column in SliceColumn],
-        filters=filters or None,
-    ).reset_index(drop=True)
-    return _finalize_tardis_eod_options_data(chain_ts=chain_ts, ticker=ticker)
-
-
-class UnitTests(Enum):
-    """Runnable local loader diagnostic cases."""
-
-    LOAD_TARDIS_OPTIONS_DF = 1
-    LOAD_DERIBIT_OPTIONS_DF = 2
-
-
-def run_unit_test(unit_test: UnitTests):
-    """Run the selected local Tardis or Deribit loader diagnostic."""
-
-    from option_chain_analytics.chain_ts import OptionsDataDFs
-
-    pd.set_option('display.max_columns', 500)
-
-    if unit_test == UnitTests.LOAD_TARDIS_OPTIONS_DF:
-        options_data_dfs = OptionsDataDFs(**load_local_tardis_contract_ts_data(ticker='ETH'))
-        options_data_dfs.print()
-
-    elif unit_test == UnitTests.LOAD_DERIBIT_OPTIONS_DF:
-        options_data_dfs = OptionsDataDFs(**load_local_deribit_contract_ts_data(ticker='ETH'))
-        options_data_dfs.print()
-
-
-if __name__ == '__main__':
-
-    unit_test = UnitTests.LOAD_TARDIS_OPTIONS_DF
-
-    is_run_all_tests = False
-    if is_run_all_tests:
-        for unit_test in UnitTests:
-            run_unit_test(unit_test=unit_test)
-    else:
-        run_unit_test(unit_test=unit_test)

@@ -1,9 +1,18 @@
-"""Create an OCA chain report from the local SPY ThetaData EOD cache."""
+"""Create a multi-expiry PDF report from a local ThetaData EOD cache.
+
+The default reads SPY on 17 July 2026 without making a network request. Build
+the cache first, then select an output path::
+
+    python examples/run_chain_report.py --date 2026-07-17 --output spy_chain_report.pdf
+
+Use ``--ticker`` and ``--cache-root`` for another cached equity or ETF.
+"""
 
 from __future__ import annotations
 
 import argparse
 from datetime import date
+from enum import Enum
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -11,11 +20,17 @@ import pandas as pd
 from matplotlib.backends.backend_pdf import PdfPages
 
 from option_chain_analytics import (
-    create_chain_from_from_options_dfs,
+    create_chain_at_time,
     load_thetadata_eod_cache,
     run_chain_report,
 )
 from option_chain_analytics import local_path as lp
+
+
+class LocalTests(Enum):
+    """Runnable cases for the cached chain-report example."""
+
+    CHAIN_REPORT = 1
 
 
 def _parse_args() -> argparse.Namespace:
@@ -27,9 +42,10 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> None:
+def _run_chain_report() -> None:
+    """Load the selected cached chain and display or save its report."""
     args = _parse_args()
-    cache_root = args.cache_root or Path(lp.get_resource_path()).joinpath(
+    cache_root = args.cache_root or Path(lp.get_cache_path()).joinpath(
         'thetadata_options', args.ticker.lower()
     )
     options_data = load_thetadata_eod_cache(
@@ -38,7 +54,7 @@ def main() -> None:
         end_date=args.date,
     )
     value_time = pd.Timestamp(options_data.get_timeindex()[0])
-    chain = create_chain_from_from_options_dfs(options_data, value_time=value_time)
+    chain = create_chain_at_time(options_data, value_time=value_time)
     if chain is None:
         raise RuntimeError(f'no exact OCA chain available for {args.date}')
     figures = run_chain_report(chain=chain)
@@ -57,5 +73,14 @@ def main() -> None:
         plt.close('all')
 
 
+def run_local_test(local_test: LocalTests) -> None:
+    """Run one selected local example case."""
+    if local_test == LocalTests.CHAIN_REPORT:
+        _run_chain_report()
+    else:
+        raise NotImplementedError(f'unsupported local test: {local_test}')
+
+
 if __name__ == '__main__':
-    main()
+
+    run_local_test(local_test=LocalTests.CHAIN_REPORT)

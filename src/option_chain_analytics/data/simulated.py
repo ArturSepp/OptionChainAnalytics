@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 import vanilla_option_pricers as bsm
 
-from option_chain_analytics.chain_ts import OptionsDataDFs
 from option_chain_analytics.option_chain import SliceColumn
+from option_chain_analytics.option_data import OptionsDataDFs
 
 DEFAULT_VALUE_TIMES = (
     pd.Timestamp('2024-01-05 08:00:00', tz='UTC'),

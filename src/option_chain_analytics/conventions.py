@@ -1,6 +1,4 @@
-"""
-define api and data specific conversions of options and futures tickers
-"""
+"""Shared option-selection and timestamp conventions."""
 from enum import Enum
 from typing import Optional
 

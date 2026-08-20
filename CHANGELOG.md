@@ -2,6 +2,64 @@
 
 All notable public changes to OptionChainAnalytics are recorded here.
 
+## 5.0.0 - 2026-08-20
+
+### Added
+
+- `create_chain_at_time` is the canonical exact/previous point-in-time reconstruction function.
+- `option_chain_analytics.option_data`, `.conventions`, and `.reconstruction` provide explicit
+  homes for normalized containers, shared conventions, and chain reconstruction.
+- `examples/build_thetadata_eod_cache.py` now exposes `create_thetadata_options_data`, which builds
+  or resumes monthly ThetaData partitions and returns the complete history as one `OptionsDataDFs`.
+
+### Changed
+
+- `create_chain_timeseries` now accepts the clearly named `options_data` input and delegates each
+  scheduled observation to `create_chain_at_time` without changing the no-look-ahead policy.
+- Provider-independent call-put parity forward/discount inference moved from the one-file
+  `fitters` package to `option_chain_analytics.utils.forward_discount`.
+- Provider loading is split by responsibility across `data.cache`, `data.cboe`, `data.tardis`,
+  `data.deribit`, and `data.loaders`; package-root `DataSource` and `ts_data_loader_wrapper` remain
+  unchanged.
+- The provider modules now document their data ownership, timestamp, quote-unit, cache, and
+  optional-dependency boundaries in detail. The README includes an installed-package ThetaData
+  workflow from resumable cache construction through rolling ATM/skew plots and an exact-date
+  multi-expiry chain report.
+- All tracked runnable examples now use the maintainer-standard `LocalTests` enum and
+  `run_local_test(local_test=...)` dispatcher entry point.
+- Normalized CBOE, Tardis EOD, and ThetaData caches now resolve through `OCA_CACHE_PATH`, defaulting
+  to the ignored repository `resources/` directory. `OCA_DATA_PATH` remains the separate root for
+  raw provider archives, while custom CBOE/Tardis directories retain co-located caches.
+- The root and examples READMEs now provide the authoritative six-example inventory, including
+  each workflow's data prerequisite, network behavior, output, and cache-first command sequence.
+
+### Fixed
+
+- ATM call/put and volatility queries now fall back to the nearest valid quote on each option side
+  when a provider reports asymmetric strike grids, avoiding failures in otherwise valid ThetaData
+  histories.
+
+### Removed
+
+- Removed the canonical and historical compatibility module paths named `chain_loader_from_ts.py`,
+  `chain_ts.py`, and `config.py`.
+- Removed `create_chain_from_from_options_dfs` and its doubled-`from` public name.
+- Removed the research helpers `generate_atm_vols_skew` and `generate_vol_delta_ts`; rolled
+  empirical analytics now live in their downstream SVM examples and SigmaStrats research code.
+- Removed the CCXT exchange adapter and integration surface; exchange-specific spot and funding
+  retrieval now belongs to downstream research applications rather than OCA.
+- Removed the maintainer-only combined local-cache CLI from tracked public examples; the ignored
+  `prop/` copy remains available for private CBOE and Tardis archives.
+- Removed the now-empty `option_chain_analytics.fitters` module path without a compatibility shim.
+- Removed the monolithic `option_chain_analytics.ts_loaders` module path; provider-specific imports
+  now use their owning `option_chain_analytics.data` modules.
+- Removed the legacy approximate LogSV smile fitter and its embedded OCA report/demo module after
+  migrating the provider-independent analytics to `stochvolmodels.fitters` and updating
+  SigmaStrats to import the synthetic grid-price helper from SVM.
+- Removed obsolete Bloomberg-surface, legacy crypto-volatility/funding, option-portfolio bump, and
+  duplicate CBOE-cache examples. The retained examples now use deterministic data, standardized
+  local caches, or explicit provider access.
+
 ## 4.0.0 - 2026-08-19
 
 ### Added

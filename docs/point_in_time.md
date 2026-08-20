@@ -1,18 +1,18 @@
 # Point-in-time reconstruction
 
-`create_chain_from_from_options_dfs` reconstructs the expiry slices available at one observation
+`create_chain_at_time` reconstructs the expiry slices available at one observation
 timestamp. Exact selection remains the default. Scheduled studies may explicitly request the
 latest observation at or before the schedule time with `time_selection="previous"`.
 
 ```python
 from option_chain_analytics import (
-    create_chain_from_from_options_dfs,
+    create_chain_at_time,
     generate_simulated_options_data,
 )
 
 options_data = generate_simulated_options_data()
 value_time = options_data.get_timeindex()[0]
-chain = create_chain_from_from_options_dfs(options_data, value_time)
+chain = create_chain_at_time(options_data, value_time)
 assert chain is not None
 assert chain.value_time == value_time
 ```
@@ -21,7 +21,7 @@ assert chain.value_time == value_time
 import pandas as pd
 
 scheduled_time = value_time + pd.Timedelta(hours=2)
-chain = create_chain_from_from_options_dfs(
+chain = create_chain_at_time(
     options_data,
     scheduled_time,
     time_selection="previous",

@@ -1,8 +1,16 @@
-"""Offline first success: construct and query a deterministic option panel."""
+"""Construct and query a deterministic option panel without data or credentials.
+
+This release-gating example reconstructs the first observation, reports its
+front-expiry ATM volatility, and selects a weekly roll maturity::
+
+    python examples/first_success.py
+"""
+
+from enum import Enum
 
 from option_chain_analytics import (
     NearestStrikeOnGrid,
-    create_chain_from_from_options_dfs,
+    create_chain_at_time,
     generate_simulated_options_data,
 )
 from option_chain_analytics.utils.roll_maturities import (
@@ -11,10 +19,17 @@ from option_chain_analytics.utils.roll_maturities import (
 )
 
 
-def main() -> None:
+class LocalTests(Enum):
+    """Runnable cases for the deterministic first-success example."""
+
+    FIRST_SUCCESS = 1
+
+
+def _run_first_success() -> None:
+    """Construct the deterministic panel and print its core evidence."""
     options_data = generate_simulated_options_data()
     value_time = options_data.get_timeindex()[0]
-    chain = create_chain_from_from_options_dfs(options_data_dfs=options_data, value_time=value_time)
+    chain = create_chain_at_time(options_data=options_data, value_time=value_time)
     if chain is None:
         raise RuntimeError('the deterministic panel did not produce a chain')
 
@@ -40,5 +55,14 @@ def main() -> None:
     print(f'weekly_roll_expiries={roll_expiries}')
 
 
+def run_local_test(local_test: LocalTests) -> None:
+    """Run one selected local example case."""
+    if local_test == LocalTests.FIRST_SUCCESS:
+        _run_first_success()
+    else:
+        raise NotImplementedError(f'unsupported local test: {local_test}')
+
+
 if __name__ == '__main__':
-    main()
+
+    run_local_test(local_test=LocalTests.FIRST_SUCCESS)

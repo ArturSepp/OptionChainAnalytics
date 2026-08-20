@@ -11,8 +11,8 @@ import pandas as pd
 import qis
 from qis import TimePeriod
 
-from option_chain_analytics.chain_loader_from_ts import create_chain_from_from_options_dfs
-from option_chain_analytics.chain_ts import OptionsDataDFs
+from option_chain_analytics.option_data import OptionsDataDFs
+from option_chain_analytics.reconstruction import create_chain_at_time
 
 
 class RollMaturitySelection(Enum):
@@ -113,7 +113,7 @@ def get_roll_maturity_slices_at_value_time(options_data_dfs: OptionsDataDFs,
     mat_dates = get_next_roll_maturities(value_time=value_time,
                                          maturity_selection=maturity_selection,
                                          hour_offset=hour_offset)
-    chain = create_chain_from_from_options_dfs(options_data_dfs=options_data_dfs, value_time=value_time)
+    chain = create_chain_at_time(options_data=options_data_dfs, value_time=value_time)
     if chain is not None:
         slice_ids = chain.get_slice_id_for_mat_dates(mat_dates, is_apply_open_interest_filter=is_apply_open_interest_filter)
     else:
@@ -199,7 +199,7 @@ class UnitTests(Enum):
 def run_unit_test(unit_test: UnitTests):
 
     ticker = 'BTC'
-    from option_chain_analytics.ts_loaders import DataSource, ts_data_loader_wrapper
+    from option_chain_analytics.data.loaders import DataSource, ts_data_loader_wrapper
 
     options_data_dfs = OptionsDataDFs(**ts_data_loader_wrapper(ticker=ticker, data_source=DataSource.TARDIS_LOCAL))
     time_period = options_data_dfs.get_start_end_date()

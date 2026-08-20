@@ -1,12 +1,8 @@
 import pandas as pd
 
-from option_chain_analytics.chain_loader_from_ts import (
-    create_chain_from_from_options_dfs,
-    create_chain_timeseries,
-)
-from option_chain_analytics.chain_ts import OptionsDataDFs
+from option_chain_analytics import OptionsDataDFs, create_chain_at_time, create_chain_timeseries
+from option_chain_analytics.data.deribit import load_local_deribit_contract_ts_data
 from option_chain_analytics.option_chain import SliceColumn, UnderlyingColumn
-from option_chain_analytics.ts_loaders import load_local_deribit_contract_ts_data
 
 
 def test_chain_creation_uses_weighted_forward_with_current_qis() -> None:
@@ -27,7 +23,7 @@ def test_chain_creation_uses_weighted_forward_with_current_qis() -> None:
     )
     options = OptionsDataDFs(chain_ts=chain_ts, spot_data=pd.DataFrame(), ticker='BTC')
 
-    chain = create_chain_from_from_options_dfs(options_data_dfs=options, value_time=value_time)
+    chain = create_chain_at_time(options_data=options, value_time=value_time)
 
     assert chain.undelying_df.loc['26JAN2024', UnderlyingColumn.FORWARD_PRICE] == 107.5
 
@@ -41,7 +37,7 @@ def test_deribit_loader_adds_forward_price_for_chain_creation(monkeypatch) -> No
             return spot_data.copy()
         return chain_ts.copy()
 
-    monkeypatch.setattr('option_chain_analytics.ts_loaders.qis.load_df_from_feather', fake_load_df_from_feather)
+    monkeypatch.setattr('option_chain_analytics.data.deribit.qis.load_df_from_feather', fake_load_df_from_feather)
 
     loaded = load_local_deribit_contract_ts_data(ticker='BTC', local_path='unused')
 
@@ -73,22 +69,22 @@ def test_chain_creation_can_select_only_the_previous_observation() -> None:
     )
     options = OptionsDataDFs(chain_ts=chain_ts, spot_data=pd.DataFrame(), ticker='BTC')
 
-    exact = create_chain_from_from_options_dfs(
-        options_data_dfs=options,
+    exact = create_chain_at_time(
+        options_data=options,
         value_time=requested_time,
     )
-    previous = create_chain_from_from_options_dfs(
-        options_data_dfs=options,
+    previous = create_chain_at_time(
+        options_data=options,
         value_time=requested_time,
         time_selection='previous',
     )
-    before_history = create_chain_from_from_options_dfs(
-        options_data_dfs=options,
+    before_history = create_chain_at_time(
+        options_data=options,
         value_time=first_time - pd.Timedelta(seconds=1),
         time_selection='previous',
     )
     scheduled = create_chain_timeseries(
-        options_data_dfs=options,
+        options_data=options,
         dates_schedule=pd.DatetimeIndex([requested_time]),
     )
 

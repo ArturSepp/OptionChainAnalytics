@@ -14,16 +14,16 @@ from typing import Any
 import pandas as pd
 
 from option_chain_analytics import local_path as lp
-from option_chain_analytics.chain_ts import OptionsDataDFs
-from option_chain_analytics.data.thetadata import map_thetadata_eod_options_data
-from option_chain_analytics.option_chain import SliceColumn
-from option_chain_analytics.ts_loaders import (
+from option_chain_analytics.data.cache import (
     NORMALIZED_OPTIONS_CACHE_FORMAT,
     NORMALIZED_OPTIONS_CACHE_SCHEMA_VERSION,
     NORMALIZED_OPTIONS_DTYPE_POLICY,
     _coerce_oca_options_frame,
     _to_oca_options_arrow_table,
 )
+from option_chain_analytics.data.thetadata import map_thetadata_eod_options_data
+from option_chain_analytics.option_chain import SliceColumn
+from option_chain_analytics.option_data import OptionsDataDFs
 
 CACHE_FORMAT = 'option_chain_analytics.thetadata_eod.partitioned'
 CACHE_VERSION = '1'
@@ -64,7 +64,7 @@ def _month_windows(start_date: date, end_date: date) -> Iterator[tuple[date, dat
 def _cache_root(ticker: str, output_dir: str | Path | None) -> Path:
     if output_dir is not None:
         return Path(output_dir).expanduser().resolve()
-    return Path(lp.get_resource_path()).joinpath('thetadata_options', ticker.lower()).resolve()
+    return Path(lp.get_cache_path()).joinpath('thetadata_options', ticker.lower()).resolve()
 
 
 def _configuration(
@@ -220,7 +220,7 @@ def build_thetadata_eod_cache(
     """Build or resume a normalized, monthly partitioned ThetaData EOD cache.
 
     Existing compatible partitions are skipped. The default location is
-    ``$OCA_DATA_PATH/thetadata_options/<ticker>/`` and the default end date is
+    ``$OCA_CACHE_PATH/thetadata_options/<ticker>/`` and the default end date is
     yesterday, compatible with ThetaData's free delayed access.
     """
     ticker = ticker.strip().upper()

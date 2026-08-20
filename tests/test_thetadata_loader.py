@@ -11,7 +11,7 @@ from option_chain_analytics import (
     DataSource,
     OptionsDataDFs,
     SliceColumn,
-    create_chain_from_from_options_dfs,
+    create_chain_at_time,
     load_thetadata_eod_options_timeseries,
     map_thetadata_eod_options_data,
     ts_data_loader_wrapper,
@@ -141,7 +141,7 @@ def test_thetadata_mapper_produces_complete_reconstructable_chain() -> None:
 
     options_data = OptionsDataDFs(**mapped)
     value_time = options_data.get_timeindex()[0]
-    chain = create_chain_from_from_options_dfs(options_data_dfs=options_data, value_time=value_time)
+    chain = create_chain_at_time(options_data=options_data, value_time=value_time)
     assert chain is not None
     assert len(chain.expiry_slices) == 1
     assert len(chain.options_df) == 6

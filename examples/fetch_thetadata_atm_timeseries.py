@@ -3,6 +3,11 @@
 The default SPY workflow reads the cache created by
 ``build_thetadata_eod_cache.py`` and makes no network request. Pass ``--live``
 to fetch the requested date range from ThetaData instead.
+
+The default window is July 2026::
+
+    python examples/fetch_thetadata_atm_timeseries.py --metric atm --output spy_atm.png
+    python examples/fetch_thetadata_atm_timeseries.py --metric skew --output spy_skew.png
 """
 
 from __future__ import annotations
@@ -10,6 +15,7 @@ from __future__ import annotations
 import argparse
 from collections.abc import Sequence
 from datetime import date
+from enum import Enum
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +32,12 @@ from option_chain_analytics import (
     load_thetadata_eod_options_timeseries,
 )
 from option_chain_analytics import local_path as lp
+
+
+class LocalTests(Enum):
+    """Runnable cases for the ThetaData time-series example."""
+
+    THETADATA_ATM_TIMESERIES = 1
 
 
 def load_cached_thetadata_chain_timeseries(
@@ -88,7 +100,7 @@ def extract_rolling_atm_vols(
 
     observation_times = options_data.get_timeindex()
     chains = create_chain_timeseries(
-        options_data_dfs=options_data,
+        options_data=options_data,
         dates_schedule=observation_times,
         time_selection='exact',
     )
@@ -237,7 +249,8 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> None:
+def _run_thetadata_atm_timeseries() -> None:
+    """Parse CLI inputs and display or save the selected time-series metric."""
     args = _parse_args()
     if args.live:
         options_data = fetch_thetadata_chain_timeseries(
@@ -250,7 +263,7 @@ def main() -> None:
         )
         mode = 'live'
     else:
-        cache_root = args.cache_root or Path(lp.get_resource_path()).joinpath(
+        cache_root = args.cache_root or Path(lp.get_cache_path()).joinpath(
             'thetadata_options', args.ticker.lower()
         )
         options_data = load_cached_thetadata_chain_timeseries(
@@ -283,5 +296,14 @@ def main() -> None:
         plt.close(figure)
 
 
+def run_local_test(local_test: LocalTests) -> None:
+    """Run one selected local example case."""
+    if local_test == LocalTests.THETADATA_ATM_TIMESERIES:
+        _run_thetadata_atm_timeseries()
+    else:
+        raise NotImplementedError(f'unsupported local test: {local_test}')
+
+
 if __name__ == '__main__':
-    main()
+
+    run_local_test(local_test=LocalTests.THETADATA_ATM_TIMESERIES)

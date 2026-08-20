@@ -141,9 +141,9 @@ class UnitTests(Enum):
 
 def run_unit_test(unit_test: UnitTests):
 
-    from option_chain_analytics.chain_loader_from_ts import create_chain_from_from_options_dfs
-    from option_chain_analytics.chain_ts import OptionsDataDFs
-    from option_chain_analytics.ts_loaders import DataSource, ts_data_loader_wrapper
+    from option_chain_analytics.data.loaders import DataSource, ts_data_loader_wrapper
+    from option_chain_analytics.option_data import OptionsDataDFs
+    from option_chain_analytics.reconstruction import create_chain_at_time
 
     pd.set_option('display.max_rows', 500)
     pd.set_option('display.max_columns', 500)
@@ -154,7 +154,7 @@ def run_unit_test(unit_test: UnitTests):
     slice_id = '31MAR23'
 
     options_data_dfs = OptionsDataDFs(**ts_data_loader_wrapper(ticker=ticker, data_source=DataSource.TARDIS_LOCAL))
-    chain = create_chain_from_from_options_dfs(options_data_dfs=options_data_dfs, value_time=value_time)
+    chain = create_chain_at_time(options_data=options_data_dfs, value_time=value_time)
     chain.print_slices_id()
 
     if unit_test == UnitTests.PRINT_CHAIN_DATA:

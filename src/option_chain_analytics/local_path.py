@@ -1,9 +1,9 @@
-"""Central local-drive paths for private data and generated OCA output.
+"""Central local-drive paths for private data, normalized caches, and output.
 
-``OCA_DATA_PATH`` and ``OCA_OUTPUT_PATH`` may override the source-checkout
-defaults. Returned strings are absolute and include a trailing platform
-separator so provider subdirectories can follow the established QIS-style
-``f"{lp.get_resource_path()}provider\\"`` convention.
+``OCA_DATA_PATH``, ``OCA_CACHE_PATH``, and ``OCA_OUTPUT_PATH`` may override
+the source-checkout defaults. Returned strings are absolute and include a
+trailing platform separator so provider subdirectories can follow the
+established QIS-style ``f"{lp.get_resource_path()}provider\\"`` convention.
 """
 
 import os
@@ -28,14 +28,15 @@ def _get_directory(env_var: str, directory_name: str) -> str:
 def get_paths() -> Dict[str, str]:
     """Return repository-local data and output paths.
 
-    ``OCA_DATA_PATH`` and ``OCA_OUTPUT_PATH`` override the defaults. This
-    keeps private datasets and generated output outside the installed package.
+    Environment variables override the defaults. This keeps private datasets,
+    normalized caches, and generated output outside the installed package.
     """
     data_path = get_resource_path()
     return {
         'RESOURCE_PATH': data_path,
         'LOCAL_RESOURCE_PATH': data_path,
         'UNIVERSE_PATH': data_path,
+        'CACHE_PATH': get_cache_path(),
         'OUTPUT_PATH': get_output_path(),
     }
 
@@ -48,6 +49,11 @@ def get_resource_path() -> str:
 def get_local_resource_path() -> str:
     """Compatibility alias for :func:`get_resource_path`."""
     return get_resource_path()
+
+
+def get_cache_path() -> str:
+    """Return ``OCA_CACHE_PATH`` or the repository's ignored ``resources/`` path."""
+    return _get_directory(env_var='OCA_CACHE_PATH', directory_name='resources')
 
 
 def get_output_path() -> str:

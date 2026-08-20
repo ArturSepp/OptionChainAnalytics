@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "option-chain-analytics"
-version = "4.0.0"
+version = "5.0.0"
 description = "Point-in-time option-chain containers, feed normalisation, reconstruction, and queries for quantitative research"
 readme = "README.md"
 license = "MIT"
@@ -61,9 +61,7 @@ deribit = [
     "requests>=2.31.0",
     "tqdm>=4.66.0",
 ]
-ccxt = [
-    "ccxt>=4.0.0",
-]
+
 bloomberg = [
     "bbg-fetch>=2.3.0",
 ]
@@ -84,7 +82,6 @@ dev = [
 ]
 all = [
     "bbg-fetch>=2.3.0",
-    "ccxt>=4.0.0",
     "furo>=2024.8.6",
     "myst-parser>=4.0",
     "pyarrow>=14.0.0",
@@ -126,8 +123,5 @@ ignore = ["E501"]
 "src/**/__init__.py" = ["F401"]
 # These narrow waivers preserve pre-existing numerical and provider behavior.
 # New modules, the public example, and tests receive no blanket exemptions.
-"examples/fetch_vol_time_series.py" = ["F841"]
-"src/option_chain_analytics/chain_loader_from_ts.py" = ["E712"]
-"src/option_chain_analytics/fitters/vol_beta_fitter.py" = ["E712", "E722"]
 "src/option_chain_analytics/option_chain.py" = ["E712", "E741", "F841"]
 "src/option_chain_analytics/visuals/plots.py" = ["E741"]

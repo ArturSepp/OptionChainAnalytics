@@ -2,8 +2,9 @@ import numpy as np
 
 from option_chain_analytics import (
     NearestStrikeOnGrid,
+    OptionsDataDFs,
     SliceColumn,
-    create_chain_from_from_options_dfs,
+    create_chain_at_time,
     generate_simulated_options_data,
 )
 from option_chain_analytics.utils.roll_maturities import (
@@ -56,7 +57,7 @@ def test_simulated_data_reconstructs_chain_and_roll_selection() -> None:
     options_data = generate_simulated_options_data()
     value_time = options_data.get_timeindex()[0]
 
-    chain = create_chain_from_from_options_dfs(options_data_dfs=options_data, value_time=value_time)
+    chain = create_chain_at_time(options_data=options_data, value_time=value_time)
 
     assert chain is not None
     assert list(chain.expiry_slices) == ['12Jan2024', '19Jan2024', '16Feb2024']
@@ -72,3 +73,39 @@ def test_simulated_data_reconstructs_chain_and_roll_selection() -> None:
         hour_offset=8,
     )
     assert roll_expiries == ['12Jan2024']
+
+
+def test_atm_vol_handles_asymmetric_call_put_strike_grids() -> None:
+    """ATM queries fall back to the nearest quote when one option side is absent."""
+    options_data = generate_simulated_options_data()
+    value_time = options_data.get_timeindex()[0]
+    first_expiry = options_data.chain_ts[SliceColumn.EXPIRY.value].min()
+    first_slice = options_data.chain_ts.loc[
+        options_data.chain_ts[SliceColumn.EXCHANGE_TIME.value].eq(value_time)
+        & options_data.chain_ts[SliceColumn.EXPIRY.value].eq(first_expiry)
+    ]
+    minimum_put_strike = first_slice.loc[
+        first_slice[SliceColumn.OPTION_TYPE.value].eq('P'),
+        SliceColumn.STRIKE.value,
+    ].min()
+    is_missing_put = (
+        options_data.chain_ts[SliceColumn.EXCHANGE_TIME.value].eq(value_time)
+        & options_data.chain_ts[SliceColumn.EXPIRY.value].eq(first_expiry)
+        & options_data.chain_ts[SliceColumn.OPTION_TYPE.value].eq('P')
+        & options_data.chain_ts[SliceColumn.STRIKE.value].ne(minimum_put_strike)
+    )
+    asymmetric = OptionsDataDFs(
+        chain_ts=options_data.chain_ts.loc[~is_missing_put].copy(),
+        spot_data=options_data.spot_data,
+        ticker=options_data.ticker,
+    )
+
+    chain = create_chain_at_time(options_data=asymmetric, value_time=value_time)
+
+    assert chain is not None
+    assert np.isfinite(
+        chain.get_atm_vol(
+            slice_id='12Jan2024',
+            nearest_strike_on_grid=NearestStrikeOnGrid.NEAREST,
+        )
+    )

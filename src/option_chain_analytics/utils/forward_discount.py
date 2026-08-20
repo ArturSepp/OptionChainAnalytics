@@ -1,4 +1,4 @@
-"""Provider-independent call-put parity fitting kernels.
+"""Provider-independent call-put parity forward and discount utilities.
 
 Provider adapters are responsible for quote normalization, rate selection,
 settlement conventions, staleness policy, and any provider-specific bounds.

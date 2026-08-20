@@ -6,13 +6,13 @@ and volatility queries.
 ```python
 from option_chain_analytics import (
     NearestStrikeOnGrid,
-    create_chain_from_from_options_dfs,
+    create_chain_at_time,
     generate_simulated_options_data,
 )
 
 options_data = generate_simulated_options_data()
 value_time = options_data.get_timeindex()[0]
-chain = create_chain_from_from_options_dfs(options_data, value_time)
+chain = create_chain_at_time(options_data, value_time)
 front = chain.get_expiry_slice(next(iter(chain.expiry_slices)))
 
 atm_strike = front.get_atm_option_strike(NearestStrikeOnGrid.NEAREST)

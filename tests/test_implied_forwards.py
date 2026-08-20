@@ -3,10 +3,10 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from option_chain_analytics.fitters import (
+from option_chain_analytics.utils import (
     imply_forward_discount_from_bid_ask_prices as exported_bid_ask_fitter,
 )
-from option_chain_analytics.fitters.forward_discount import (
+from option_chain_analytics.utils.forward_discount import (
     imply_forward_discount_from_bid_ask_prices,
 )
 
@@ -26,7 +26,7 @@ def _parity_quotes(
     return call_quotes, put_quotes
 
 
-def test_provider_independent_fitter_is_exported_without_optional_solver() -> None:
+def test_provider_independent_parity_utility_is_exported_without_optional_solver() -> None:
     assert exported_bid_ask_fitter is imply_forward_discount_from_bid_ask_prices
 
 

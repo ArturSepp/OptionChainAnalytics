@@ -4,21 +4,22 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from option_chain_analytics.chain_loader_from_ts import create_chain_from_from_options_dfs
-from option_chain_analytics.chain_ts import OptionsDataDFs
-from option_chain_analytics.option_chain import SliceColumn
-from option_chain_analytics.ts_loaders import (
+from option_chain_analytics import OptionsDataDFs, create_chain_at_time
+from option_chain_analytics.data.cboe import (
     CBOE_CACHE_FORMAT,
     CBOE_CACHE_SCHEMA_VERSION,
-    TARDIS_EOD_CACHE_FORMAT,
-    TARDIS_EOD_CACHE_SCHEMA_VERSION,
     build_local_cboe_options_cache,
-    build_local_tardis_eod_options_cache,
     load_local_cboe_options_data,
-    load_local_tardis_eod_options_data,
     map_cboe_options_data,
     reconstruct_cboe_source_analytics,
 )
+from option_chain_analytics.data.tardis import (
+    TARDIS_EOD_CACHE_FORMAT,
+    TARDIS_EOD_CACHE_SCHEMA_VERSION,
+    build_local_tardis_eod_options_cache,
+    load_local_tardis_eod_options_data,
+)
+from option_chain_analytics.option_chain import SliceColumn
 
 
 def _source_frame() -> pd.DataFrame:
@@ -128,7 +129,7 @@ def test_mapped_cboe_data_constructs_options_data_dfs_and_chain() -> None:
     options_data = OptionsDataDFs(**map_cboe_options_data(source=_source_frame(), ticker='SPX'))
     value_time = options_data.get_timeindex()[0]
 
-    chain = create_chain_from_from_options_dfs(options_data_dfs=options_data, value_time=value_time)
+    chain = create_chain_at_time(options_data=options_data, value_time=value_time)
 
     assert list(chain.expiry_slices) == ['19Jan2024']
     assert np.isclose(chain.get_expiry_slice('19Jan2024').get_future_price(), 5000.0)

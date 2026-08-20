@@ -1,4 +1,4 @@
-"""Aligned option and futures time-series containers.
+"""Provider-normalized option and futures observation containers.
 
 ``ChainTs`` owns provider-normalized observations, aligned spot data, and
 point-in-time slicing. ``OptionsDataDFs`` is the long-form option-panel input
@@ -236,42 +236,3 @@ class OptionsDataDFs(ChainTs):
         return OptionsDataDFs(chain_ts=chain_ts.loc[chain_ts[SliceColumn.CONTRACT.value].isin(contracts), :],
                               spot_data=obj.spot_data,
                               ticker=obj.ticker)
-
-
-class UnitTests(Enum):
-    """Runnable local diagnostic cases for this module."""
-
-    TEST_CHAIN = 1
-
-
-def run_unit_test(unit_test: UnitTests):
-    """Run a local Tardis/Deribit chain-container diagnostic."""
-
-    from option_chain_analytics import local_path as lp
-
-    if unit_test == UnitTests.TEST_CHAIN:
-        ticker = 'ETH'
-        chain_ts = qis.load_df_from_feather(file_name=f"{ticker}_freq_H",
-                                            index_col=None,
-                                            local_path=f"{lp.get_resource_path()}tardis\\")
-        spot_data = qis.load_df_from_feather(file_name=f"{ticker}-spot",
-                                             local_path=f"{lp.get_resource_path()}deribit\\")
-
-        chain_ts = ChainTs(chain_ts=chain_ts, spot_data=spot_data, ticker=ticker)
-        chain_ts.print()
-        chain_ts.get_start_end_date().print()
-
-        df = chain_ts.get_time_slice(timestamp=pd.Timestamp('2019-04-01 08:00:00+00:00'))
-        print(df)
-
-
-if __name__ == '__main__':
-
-    unit_test = UnitTests.TEST_CHAIN
-
-    is_run_all_tests = False
-    if is_run_all_tests:
-        for unit_test in UnitTests:
-            run_unit_test(unit_test=unit_test)
-    else:
-        run_unit_test(unit_test=unit_test)

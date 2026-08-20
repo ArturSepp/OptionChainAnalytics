@@ -1,7 +1,7 @@
 """ThetaData end-of-day equity-option normalization.
 
 The adapter keeps provider access optional and maps ThetaData's national EOD
-report into the native :class:`~option_chain_analytics.chain_ts.OptionsDataDFs`
+report into the native :class:`~option_chain_analytics.option_data.OptionsDataDFs`
 constructor contract.  It supports US equity and ETF options whose contractual
 expiry is represented as 16:00 America/New_York.  Index products with AM or
 product-specific settlement times are deliberately outside this adapter.
@@ -16,10 +16,10 @@ from typing import Any, Protocol
 import numpy as np
 import pandas as pd
 
-from option_chain_analytics.fitters.forward_discount import (
+from option_chain_analytics.option_chain import SliceColumn
+from option_chain_analytics.utils.forward_discount import (
     imply_forward_discount_from_bid_ask_prices,
 )
-from option_chain_analytics.option_chain import SliceColumn
 
 THETADATA_EXPIRY_TIME = time(16, 0)
 THETADATA_TIMEZONE = 'America/New_York'
