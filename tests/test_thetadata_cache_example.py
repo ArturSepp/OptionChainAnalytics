@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import runpy
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -9,7 +10,6 @@ from typing import Any
 import pandas as pd
 import pytest
 import vanilla_option_pricers as bsm
-from examples.build_thetadata_eod_cache import create_thetadata_options_data
 
 from option_chain_analytics import (
     SliceColumn,
@@ -19,6 +19,12 @@ from option_chain_analytics import (
 from option_chain_analytics.data.cache import _get_oca_options_arrow_schema
 
 pq = pytest.importorskip('pyarrow.parquet')
+EXAMPLE_PATH = Path(__file__).resolve().parents[1].joinpath(
+    'examples', 'build_thetadata_eod_cache.py'
+)
+create_thetadata_options_data = runpy.run_path(str(EXAMPLE_PATH))[
+    'create_thetadata_options_data'
+]
 
 REPORT_DATES = (date(2026, 8, 17), date(2026, 8, 18))
 EXPIRATION = date(2026, 9, 18)
