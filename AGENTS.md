@@ -68,18 +68,21 @@ are excluded from distributions.
 ## Commands
 
 ```bash
-pip install -e ".[dev]"
-pytest -q
-ruff check src tests examples tools docs/conf.py
-python examples/first_success.py
-sphinx-build -W -b html docs docs/_build/html
-python -m build
-python tools/verify_distribution.py dist
+uv sync --locked --group test
+uv run --no-sync pytest -q
+uv run --locked --only-group lint ruff check .
+uv run --no-sync python examples/first_success.py
+uv sync --locked --extra docs
+uv run --no-sync python -m sphinx -E -W --keep-going -b html docs docs/_build/html
+uv build --sdist --clear --out-dir dist
+uv build --wheel dist/*.tar.gz --out-dir dist
+uv run --no-project python tools/verify_distribution.py dist
 ```
 
 Install `.[cboe]` for Feather/Parquet CBOE data, or the relevant provider extra (`deribit`,
-`bloomberg`, `thetadata`). Supported Python is >= 3.10; CI runs tests and lint on
-Python 3.10–3.14. CI also builds the documentation and verifies both wheel and source distribution.
+`bloomberg`, `thetadata`). Supported Python is >= 3.10; CI runs Python 3.10–3.14 under Linux
+and Python 3.12 under Windows and macOS. CI also lints, builds the documentation, and verifies
+both wheel and source distribution from clean, outside-checkout environments.
 
 ## Conventions
 
@@ -90,7 +93,7 @@ Python 3.10–3.14. CI also builds the documentation and verifies both wheel and
   `python -m ...` execution. Each runner exposes `Locals` and `run_local(local=...)`.
 - Production modules and public `__init__.py` files never import `run_local`, and built
   distributions exclude all development runners.
-- Line length is 120 (`ruff`, rules `E`, `F`, `W`, `I`). Narrow per-file ignores preserve legacy
+- Line length is 120 (`ruff`, rules `E`, `F`, `W`). Narrow per-file ignores preserve legacy
   provider/numerical code; do not expand them for new code.
 - `SliceColumn` is the canonical option-observation schema. Adapters return every schema column in
   enum order, plus aligned `spot_data` and `ticker` suitable for `OptionsDataDFs(**result)`.
