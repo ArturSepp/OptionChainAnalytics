@@ -33,6 +33,12 @@ python -m build
 python tools/verify_distribution.py dist
 ```
 
+Keep automated checks in `tests/test_*.py`. Put a component development diagnostic beside its
+implementation in the nearest `src/option_chain_analytics/**/run_local/<subject>_run.py`, using
+`Locals` and `run_local(local=...)`. These implicit namespace folders intentionally omit
+`__init__.py` and are excluded from built distributions. Broader public workflows stay in
+`examples/`.
+
 ## Change requirements
 
 - Preserve point-in-time behavior: code at observation time `t` must not use later observations.

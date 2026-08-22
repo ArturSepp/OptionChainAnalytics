@@ -19,7 +19,7 @@ def test_release_candidate_metadata_is_aligned() -> None:
     citation = (REPOSITORY_ROOT / 'CITATION.cff').read_text(encoding='utf-8')
     changelog = (REPOSITORY_ROOT / 'CHANGELOG.md').read_text(encoding='utf-8')
 
-    assert project['version'] == '5.0.0'
+    assert project['version'] == '5.1.0'
     assert project['requires-python'] == '>=3.10'
     assert project['license'] == 'MIT'
     optional_dependencies = project['optional-dependencies']

@@ -14,8 +14,6 @@ by :class:`~option_chain_analytics.option_data.OptionsDataDFs`.
 from enum import Enum
 from typing import Any, Dict
 
-import pandas as pd
-
 
 class DataSource(Enum):
     """Select a provider adapter for :func:`ts_data_loader_wrapper`.
@@ -92,39 +90,3 @@ def ts_data_loader_wrapper(data_source: DataSource = DataSource.TARDIS_LOCAL,
         return load_local_tardis_eod_options_data(ticker=ticker, **kwargs)
 
     raise NotImplementedError(f'{data_source}')
-
-
-class UnitTests(Enum):
-    """Runnable local loader diagnostic cases."""
-
-    LOAD_TARDIS_OPTIONS_DF = 1
-    LOAD_DERIBIT_OPTIONS_DF = 2
-
-
-def run_unit_test(unit_test: UnitTests):
-    """Run the selected local Tardis or Deribit loader diagnostic."""
-    from option_chain_analytics.data.deribit import load_local_deribit_contract_ts_data
-    from option_chain_analytics.data.tardis import load_local_tardis_contract_ts_data
-    from option_chain_analytics.option_data import OptionsDataDFs
-
-    pd.set_option('display.max_columns', 500)
-
-    if unit_test == UnitTests.LOAD_TARDIS_OPTIONS_DF:
-        options_data_dfs = OptionsDataDFs(**load_local_tardis_contract_ts_data(ticker='ETH'))
-        options_data_dfs.print()
-
-    elif unit_test == UnitTests.LOAD_DERIBIT_OPTIONS_DF:
-        options_data_dfs = OptionsDataDFs(**load_local_deribit_contract_ts_data(ticker='ETH'))
-        options_data_dfs.print()
-
-
-if __name__ == '__main__':
-
-    unit_test = UnitTests.LOAD_TARDIS_OPTIONS_DF
-
-    is_run_all_tests = False
-    if is_run_all_tests:
-        for unit_test in UnitTests:
-            run_unit_test(unit_test=unit_test)
-    else:
-        run_unit_test(unit_test=unit_test)

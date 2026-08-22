@@ -1,9 +1,7 @@
-from enum import Enum
 from typing import Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import qis
 import seaborn as sns
 
@@ -130,63 +128,3 @@ def plot_slice_vols_with_oi(eslice: ExpirySlice,
     ax.legend(bbox_to_anchor=(0.4, 0.95), loc='upper center', ncol=2)
     ax.set_ylabel('Contracts OI')
     ax.set_ylim([0.0, None])
-
-
-class UnitTests(Enum):
-    PRINT_CHAIN_DATA = 1
-    PLOT_SLICE_OI = 2
-    PLOT_SLICE_VOL = 3
-    PLOT_SLICE_VOL_OI = 4
-
-
-def run_unit_test(unit_test: UnitTests):
-
-    from option_chain_analytics.data.loaders import DataSource, ts_data_loader_wrapper
-    from option_chain_analytics.option_data import OptionsDataDFs
-    from option_chain_analytics.reconstruction import create_chain_at_time
-
-    pd.set_option('display.max_rows', 500)
-    pd.set_option('display.max_columns', 500)
-    pd.set_option('display.width', 1000)
-
-    ticker = 'ETH'
-    value_time = pd.Timestamp('2023-02-07 08:00:00+00:00')
-    slice_id = '31MAR23'
-
-    options_data_dfs = OptionsDataDFs(**ts_data_loader_wrapper(ticker=ticker, data_source=DataSource.TARDIS_LOCAL))
-    chain = create_chain_at_time(options_data=options_data_dfs, value_time=value_time)
-    chain.print_slices_id()
-
-    if unit_test == UnitTests.PRINT_CHAIN_DATA:
-        for expiry, eslice in chain.expiry_slices.items():
-            eslice.print()
-
-    elif unit_test == UnitTests.PLOT_SLICE_OI:
-        eslice = chain.expiry_slices[slice_id]
-        plot_slice_open_interest(eslice=eslice)
-
-    elif unit_test == UnitTests.PLOT_SLICE_VOL:
-        eslice = chain.expiry_slices[slice_id]
-        plot_slice_vols(eslice=eslice)
-        plot_slice_vols(eslice=eslice, is_delta_space=True)
-
-    elif unit_test == UnitTests.PLOT_SLICE_VOL_OI:
-        eslice = chain.expiry_slices[slice_id]
-        plot_slice_vols_with_oi(eslice=eslice, is_delta_space=False, delta_bounds=(-0.1, 0.1))
-        #plot_slice_vols_with_oi(eslice=eslice, is_delta_space=True)
-
-    mng = plt.get_current_fig_manager()
-    mng.window.showMaximized()
-    plt.show()
-
-
-if __name__ == '__main__':
-
-    unit_test = UnitTests.PLOT_SLICE_VOL
-
-    is_run_all_tests = False
-    if is_run_all_tests:
-        for unit_test in UnitTests:
-            run_unit_test(unit_test=unit_test)
-    else:
-        run_unit_test(unit_test=unit_test)

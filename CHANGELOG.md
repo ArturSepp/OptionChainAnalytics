@@ -2,6 +2,16 @@
 
 All notable public changes to OptionChainAnalytics are recorded here.
 
+## 5.1.0 - 2026-08-22
+
+### Changed
+
+- Component development diagnostics now live beside their owning modules in source-only
+  `run_local/*_run.py` namespace folders and use the `Locals` / `run_local(local=...)` contract.
+- Runnable examples use the same dispatcher names while remaining broader repository workflows;
+  automated pytest modules remain centralized under `tests/`.
+- Wheel and source-distribution verification reject development runners.
+
 ## 5.0.0 - 2026-08-20
 
 ### Added

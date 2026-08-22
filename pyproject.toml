@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "option-chain-analytics"
-version = "5.0.0"
+version = "5.1.0"
 description = "Point-in-time option-chain containers, feed normalisation, reconstruction, and queries for quantitative research"
 readme = "README.md"
 license = "MIT"
@@ -104,7 +104,13 @@ package-dir = {"" = "src"}
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["option_chain_analytics*"]
-exclude = ["tests*"]
+exclude = [
+    "tests*",
+    "option_chain_analytics.run_local*",
+    "option_chain_analytics.*.run_local*",
+    "option_chain_analytics.*.*.run_local*",
+    "option_chain_analytics.*.*.*.run_local*",
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

@@ -47,7 +47,7 @@ from option_chain_analytics import (
 from option_chain_analytics import local_path as lp
 
 
-class LocalTests(Enum):
+class Locals(Enum):
     """Runnable cases for the ThetaData cache-building example."""
 
     BUILD_THETADATA_EOD_CACHE = 1
@@ -133,14 +133,14 @@ def _run_build_thetadata_eod_cache() -> None:
     print(f'spot_rows={len(options_data.spot_data):,}')
 
 
-def run_local_test(local_test: LocalTests) -> None:
+def run_local(local: Locals) -> None:
     """Run one selected local example case."""
-    if local_test == LocalTests.BUILD_THETADATA_EOD_CACHE:
+    if local == Locals.BUILD_THETADATA_EOD_CACHE:
         _run_build_thetadata_eod_cache()
     else:
-        raise NotImplementedError(f'unsupported local test: {local_test}')
+        raise NotImplementedError(f'unsupported local: {local}')
 
 
 if __name__ == '__main__':
 
-    run_local_test(local_test=LocalTests.BUILD_THETADATA_EOD_CACHE)
+    run_local(local=Locals.BUILD_THETADATA_EOD_CACHE)

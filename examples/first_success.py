@@ -19,7 +19,7 @@ from option_chain_analytics.utils.roll_maturities import (
 )
 
 
-class LocalTests(Enum):
+class Locals(Enum):
     """Runnable cases for the deterministic first-success example."""
 
     FIRST_SUCCESS = 1
@@ -55,14 +55,14 @@ def _run_first_success() -> None:
     print(f'weekly_roll_expiries={roll_expiries}')
 
 
-def run_local_test(local_test: LocalTests) -> None:
+def run_local(local: Locals) -> None:
     """Run one selected local example case."""
-    if local_test == LocalTests.FIRST_SUCCESS:
+    if local == Locals.FIRST_SUCCESS:
         _run_first_success()
     else:
-        raise NotImplementedError(f'unsupported local test: {local_test}')
+        raise NotImplementedError(f'unsupported local: {local}')
 
 
 if __name__ == '__main__':
 
-    run_local_test(local_test=LocalTests.FIRST_SUCCESS)
+    run_local(local=Locals.FIRST_SUCCESS)

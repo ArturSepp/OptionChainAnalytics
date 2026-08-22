@@ -16,7 +16,6 @@ The module owns reusable software only. Raw responses and appended histories
 remain private files below OCA's configured resource directory and are never
 included in the distribution.
 """
-from enum import Enum
 from typing import Any, Dict, List, Literal, Union
 
 import pandas as pd
@@ -338,52 +337,3 @@ def update_deribit_options_data(tickers: List[str] = ("ETH", "BTC"), is_print: b
         if is_print:
             print(f"Data saved for {ticker}")
     return current_time
-
-
-class UnitTests(Enum):
-    """Runnable local Deribit data cases."""
-
-    FILE_PATH = 1
-    UPDATE_OPTIONS_DATA = 2
-    LOAD_DERIBIT_OPTIONS_DF = 3
-
-
-def run_unit_test(unit_test: UnitTests):
-    """Run the selected local Deribit fetch or loading diagnostic."""
-
-    pd.set_option('display.max_columns', 500)
-
-    if unit_test == UnitTests.FILE_PATH:
-        file_path = get_deribit_appended_file_path(ticker='BTC')
-        print(file_path)
-
-    elif unit_test == UnitTests.UPDATE_OPTIONS_DATA:
-        timestamps = update_deribit_options_data()
-        print(timestamps)
-
-    elif unit_test == UnitTests.LOAD_DERIBIT_OPTIONS_DF:
-        from option_chain_analytics.data.deribit import load_local_deribit_contract_ts_data
-        from option_chain_analytics.option_data import OptionsDataDFs
-        from option_chain_analytics.reconstruction import create_chain_at_time
-
-        options_data_dfs = OptionsDataDFs(**load_local_deribit_contract_ts_data(ticker='ETH'))
-        options_data_dfs.print()
-        print(options_data_dfs.chain_ts.columns)
-        time_index = options_data_dfs.get_timeindex()
-        print(f"time_index={time_index}")
-
-        value_time = pd.Timestamp('2023-10-27 06:20:03.160939+00:00')
-        chain = create_chain_at_time(options_data=options_data_dfs, value_time=value_time)
-        chain.print_slices_id()
-
-
-if __name__ == '__main__':
-
-    unit_test = UnitTests.LOAD_DERIBIT_OPTIONS_DF
-
-    is_run_all_tests = False
-    if is_run_all_tests:
-        for unit_test in UnitTests:
-            run_unit_test(unit_test=unit_test)
-    else:
-        run_unit_test(unit_test=unit_test)

@@ -1,24 +1,20 @@
 """Multi-panel volatility and open-interest reports for option chains.
 
 ``run_chain_report`` creates one strike-space and delta-space figure per
-expiry. The local diagnostic persists the resulting figure collection through
-OCA's centralized output path.
+expiry. The source-checkout diagnostic in
+``option_chain_analytics.visuals.run_local.chain_report_run`` persists the
+resulting figure collection through OCA's centralized output path.
 """
 
-from enum import Enum
 from typing import Dict
 
 import matplotlib.pyplot as plt
-import pandas as pd
-import qis
 import seaborn as sns
 
 import option_chain_analytics.visuals.slices as vis
 
 # analytics
 from option_chain_analytics.option_chain import SlicesChain
-from option_chain_analytics.option_data import OptionsDataDFs
-from option_chain_analytics.reconstruction import create_chain_at_time
 
 FIG_SIZE = (8.3, 11.7)  # A4 for portrait
 
@@ -59,43 +55,3 @@ def run_chain_report(chain: SlicesChain) -> Dict[str, plt.Figure]:
                 plt.close(fig)
 
     return figs
-
-
-class UnitTests(Enum):
-    """Runnable local chain-report cases."""
-
-    RUN_CHAIN_REPORT = 1
-
-
-def run_unit_test(unit_test: UnitTests):
-    """Build and save the selected local chain-report case."""
-
-    from option_chain_analytics import local_path as lp
-    from option_chain_analytics.data.loaders import DataSource, ts_data_loader_wrapper
-
-    ticker = 'BTC'
-    options_data_dfs = OptionsDataDFs(**ts_data_loader_wrapper(ticker=ticker, data_source=DataSource.TARDIS_LOCAL))
-
-    if unit_test == UnitTests.RUN_CHAIN_REPORT:
-        value_time = pd.Timestamp('2023-02-06 08:00:00+00:00')
-        chain = create_chain_at_time(options_data=options_data_dfs, value_time=value_time)
-        figs = run_chain_report(chain=chain)
-
-        qis.save_figs_to_pdf(figs=figs,
-                             file_name=f"chain_report_{value_time:%Y%m%dT%H%M%S}",
-                             orientation='landscape',
-                             local_path=lp.get_output_path())
-
-    plt.show()
-
-
-if __name__ == '__main__':
-
-    unit_test = UnitTests.RUN_CHAIN_REPORT
-
-    is_run_all_tests = False
-    if is_run_all_tests:
-        for unit_test in UnitTests:
-            run_unit_test(unit_test=unit_test)
-    else:
-        run_unit_test(unit_test=unit_test)

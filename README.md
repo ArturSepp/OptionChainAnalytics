@@ -422,8 +422,12 @@ python -m build
 ```
 
 The installable package lives under `src/option_chain_analytics/`; repository-only scripts live in
-`examples/`. Raw datasets, normalized caches, agent reports, and generated outputs live in ignored
-`data/`, `resources/`, `agents/`, and `outputs/` directories.
+`examples/`. Automated checks use `tests/test_*.py`. Component development diagnostics live beside
+their implementation in `src/option_chain_analytics/**/run_local/*_run.py`, expose `Locals` and
+`run_local(local=...)`, and are excluded from distributions. The `run_local` folders use Python's
+implicit namespace-package support and therefore contain no `__init__.py` files. Raw datasets,
+normalized caches, agent reports, and generated outputs live in ignored `data/`, `resources/`,
+`agents/`, and `outputs/` directories.
 
 ## Research and licensing boundary
 

@@ -12,3 +12,7 @@ prune docs/_build
 recursive-include examples *.md *.py
 recursive-include tests *.py
 recursive-include tools *.py
+prune src/option_chain_analytics/run_local
+prune src/option_chain_analytics/*/run_local
+prune src/option_chain_analytics/*/*/run_local
+prune src/option_chain_analytics/*/*/*/run_local

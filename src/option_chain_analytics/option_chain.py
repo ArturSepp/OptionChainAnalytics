@@ -991,28 +991,3 @@ def get_contract_execution_price(contract_data: pd.DataFrame,
     slippage_usd = slippage_coin * contract_data[SliceColumn.USD_MULTIPLIER]
 
     return execution_price_coin, execution_price_usd, slippage_coin, slippage_usd
-
-
-class UnitTests(Enum):
-    EXPIRY_SLICE_DATA = 1
-
-
-def run_unit_test(unit_test: UnitTests):
-
-    if unit_test == UnitTests.EXPIRY_SLICE_DATA:
-        expiry_slice = get_flat_vol_expiry_slice()
-        expiry_slice.print()
-
-    plt.show()
-
-
-if __name__ == '__main__':
-
-    unit_test = UnitTests.EXPIRY_SLICE_DATA
-
-    is_run_all_tests = False
-    if is_run_all_tests:
-        for unit_test in UnitTests:
-            run_unit_test(unit_test=unit_test)
-    else:
-        run_unit_test(unit_test=unit_test)

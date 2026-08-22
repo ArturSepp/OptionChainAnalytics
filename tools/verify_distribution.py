@@ -83,8 +83,14 @@ def verify_distribution(dist_dir: Path) -> None:
 
         repository_only = [member for member in members if member.parts[0] in REPOSITORY_ONLY_ROOTS]
         raw_data = [member for member in members if member.suffix.lower() in RAW_DATA_SUFFIXES]
-        if repository_only or raw_data:
-            raise AssertionError(f'wheel contains private/repository-only files: {repository_only + raw_data}')
+        development_runners = [
+            member for member in members if 'run_local' in member.parts or member.name.endswith('_run.py')
+        ]
+        if repository_only or raw_data or development_runners:
+            raise AssertionError(
+                'wheel contains private/repository-only/development files: '
+                f'{repository_only + raw_data + development_runners}'
+            )
 
         metadata_name = next(str(member) for member in members if str(member).endswith('.dist-info/METADATA'))
         metadata = Parser().parsestr(archive.read(metadata_name).decode('utf-8'))
@@ -104,6 +110,12 @@ def verify_distribution(dist_dir: Path) -> None:
         source_members = [PurePosixPath(member.name) for member in archive.getmembers() if member.isfile()]
         relative_members = [PurePosixPath(*member.parts[1:]) for member in source_members if len(member.parts) > 1]
         source_names = {str(member) for member in relative_members}
+        development_runners = [
+            member for member in relative_members
+            if 'run_local' in member.parts or member.name.endswith('_run.py')
+        ]
+        if development_runners:
+            raise AssertionError(f'source distribution contains development runners: {development_runners}')
         required_source_files = {
             'CHANGELOG.md',
             'CITATION.cff',

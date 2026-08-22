@@ -54,6 +54,7 @@ src/option_chain_analytics/
   data/                    simulated data and optional provider modules
   utils/                   maturity rolls, parity forwards/discounts, numerics, and payoffs
   visuals/                 chain reports and plots
+  **/run_local/*_run.py    source-checkout component development runners
 tests/                     offline and optional-integration tests
 examples/                  repository-only runnable examples
 docs/                      Sphinx documentation
@@ -83,6 +84,12 @@ Python 3.10–3.14. CI also builds the documentation and verifies both wheel and
 ## Conventions
 
 - Tests are named `test_*.py` and live in the top-level `tests/` directory.
+- Component development diagnostics live beside their owning implementation in the nearest
+  `src/option_chain_analytics/**/run_local/<subject>_run.py`. The `run_local` folders intentionally
+  have no `__init__.py`; Python 3.10+ treats them as implicit namespace packages for explicit
+  `python -m ...` execution. Each runner exposes `Locals` and `run_local(local=...)`.
+- Production modules and public `__init__.py` files never import `run_local`, and built
+  distributions exclude all development runners.
 - Line length is 120 (`ruff`, rules `E`, `F`, `W`, `I`). Narrow per-file ignores preserve legacy
   provider/numerical code; do not expand them for new code.
 - `SliceColumn` is the canonical option-observation schema. Adapters return every schema column in
@@ -94,8 +101,9 @@ Python 3.10–3.14. CI also builds the documentation and verifies both wheel and
   using simulated data must not require Bloomberg, Yahoo, Deribit, or other optional services.
 - Runnable examples live under root `examples/`, use the public API where possible, and do not
   require private data unless clearly labelled as local diagnostics.
-- Every runnable example defines a `LocalTests` enum and a `run_local_test(local_test=...)`
-  dispatcher, with the selected default invoked explicitly under the `__main__` guard.
+- Every runnable example defines a `Locals` enum and a `run_local(local=...)` dispatcher, with the
+  selected default invoked explicitly under the `__main__` guard. Examples remain broader public
+  workflows rather than component development runners.
 - Public docstrings use NumPy style. Provider transformations document source timezones, price
   units, and any inferred fields.
 

@@ -30,7 +30,7 @@ from option_chain_analytics import (
 )
 
 
-class LocalTests(Enum):
+class Locals(Enum):
     """Runnable cases for the single-date ThetaData example."""
 
     THETADATA_EOD = 1
@@ -254,14 +254,14 @@ def _run_thetadata_eod() -> None:
     )
 
 
-def run_local_test(local_test: LocalTests) -> None:
+def run_local(local: Locals) -> None:
     """Run one selected local example case."""
-    if local_test == LocalTests.THETADATA_EOD:
+    if local == Locals.THETADATA_EOD:
         _run_thetadata_eod()
     else:
-        raise NotImplementedError(f'unsupported local test: {local_test}')
+        raise NotImplementedError(f'unsupported local: {local}')
 
 
 if __name__ == '__main__':
 
-    run_local_test(local_test=LocalTests.THETADATA_EOD)
+    run_local(local=Locals.THETADATA_EOD)
