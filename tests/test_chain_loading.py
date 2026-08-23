@@ -94,3 +94,42 @@ def test_chain_creation_can_select_only_the_previous_observation() -> None:
     assert previous.options_df[SliceColumn.EXCHANGE_TIME.value].eq(first_time).all()
     assert before_history is None
     assert scheduled[requested_time].value_time == first_time
+
+
+def test_chain_data_loads_and_resamples_its_linked_price_series() -> None:
+    observation_times = pd.DatetimeIndex(
+        [
+            pd.Timestamp('2024-01-02 08:00:00', tz='UTC'),
+            pd.Timestamp('2024-01-02 16:00:00', tz='UTC'),
+            pd.Timestamp('2024-01-03 08:00:00', tz='UTC'),
+        ]
+    )
+    options = OptionsDataDFs(
+        chain_ts=pd.DataFrame(
+            {SliceColumn.EXCHANGE_TIME.value: observation_times}
+        ),
+        spot_data=pd.DataFrame(
+            {
+                'close': [100.0, 101.0, 102.0],
+                'funding_rate': [0.001, 0.002, 0.003],
+            },
+            index=observation_times,
+        ),
+        ticker='BTC',
+    )
+
+    daily_close = options.load_price_data(data='close', freq='D')
+    funding = options.load_price_data(data='funding_rate', freq=None)
+
+    expected_daily_close = pd.Series(
+        [101.0, 102.0],
+        index=pd.DatetimeIndex(
+            [
+                pd.Timestamp('2024-01-02 00:00:00', tz='UTC'),
+                pd.Timestamp('2024-01-03 00:00:00', tz='UTC'),
+            ]
+        ),
+        name='close',
+    )
+    pd.testing.assert_series_equal(daily_close, expected_daily_close, check_freq=False)
+    pd.testing.assert_series_equal(funding, options.spot_data['funding_rate'])

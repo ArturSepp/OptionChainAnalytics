@@ -66,6 +66,39 @@ class ChainTs:
             df = time_period.locate(df)
         return df
 
+    def load_price_data(
+        self,
+        time_period: Optional[TimePeriod] = None,
+        data: str = 'close',
+        freq: Optional[str] = 'D',
+    ) -> pd.Series:
+        """Return one resampled underlying series linked to this chain history.
+
+        Parameters
+        ----------
+        time_period : qis.TimePeriod, optional
+            Inclusive period restriction applied after resampling.
+        data : str, default='close'
+            Column of the aligned ``spot_data`` panel, for example ``close``,
+            ``perp``, or ``funding_rate``.
+        freq : str, optional, default='D'
+            Pandas resampling frequency. ``None`` preserves the source timestamps.
+
+        Returns
+        -------
+        pandas.Series
+            Requested series from the underlying data carried by this chain object.
+        """
+        if data not in self.spot_data.columns:
+            available = ', '.join(map(str, self.spot_data.columns))
+            raise KeyError(f"underlying data column {data!r} is unavailable; found: {available}")
+        price_data = self.spot_data[data]
+        if freq is not None:
+            price_data = price_data.resample(freq).last()
+        if time_period is not None:
+            price_data = time_period.locate(price_data)
+        return price_data
+
     def get_time_slice(self,
                        timestamp: pd.Timestamp,
                        contracts: List[str] = None,

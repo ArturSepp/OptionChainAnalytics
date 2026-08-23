@@ -4,6 +4,11 @@ All notable public changes to OptionChainAnalytics are recorded here.
 
 ## [Unreleased]
 
+### Added
+
+- `ChainTs.load_price_data` returns a selected and optionally resampled underlying series from
+  the `spot_data` panel linked to the same option-chain history.
+
 ### Removed
 
 - Retired the contributor-facing `dev` extra in favor of PEP 735 dependency groups:
