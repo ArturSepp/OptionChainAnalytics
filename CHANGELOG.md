@@ -2,6 +2,14 @@
 
 All notable public changes to OptionChainAnalytics are recorded here.
 
+## [Unreleased]
+
+### Removed
+
+- Retired the contributor-facing `dev` extra in favor of PEP 735 dependency groups:
+  `test` for pytest and Python 3.10 TOML support, and `lint` for Ruff. The user-facing
+  provider, documentation, and aggregate extras remain available.
+
 ## 5.1.0 - 2026-08-22
 
 ### Changed

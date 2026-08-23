@@ -1,5 +1,11 @@
 # OptionChainAnalytics
 
+[![PyPI](https://img.shields.io/pypi/v/option-chain-analytics?style=flat-square)](https://pypi.org/project/option-chain-analytics/)
+[![Python](https://img.shields.io/pypi/pyversions/option-chain-analytics?style=flat-square)](https://pypi.org/project/option-chain-analytics/)
+[![License](https://img.shields.io/github/license/ArturSepp/OptionChainAnalytics.svg?style=flat-square)](LICENSE)
+[![CI](https://github.com/ArturSepp/OptionChainAnalytics/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ArturSepp/OptionChainAnalytics/actions/workflows/ci.yml)
+[![Downloads](https://static.pepy.tech/badge/option-chain-analytics)](https://pepy.tech/project/option-chain-analytics)
+
 OptionChainAnalytics provides point-in-time option-chain containers, feed normalisation,
 chain reconstruction, queries, and visualisation in Python for quantitative research.
 
