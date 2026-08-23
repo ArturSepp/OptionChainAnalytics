@@ -272,3 +272,11 @@ maintainer explicitly asking for a release.
   optional dependency is absent from the test environment.
 - Bloomberg BVOL data is a volatility surface input, not yet an OCA option-chain source; synthetic
   prices and maturity rolling remain deliberately unimplemented.
+
+## Python environment
+
+- Keep this repository's Python environment outside OneDrive at `C:\Python\OptionChainAnalytics312`.
+- Never create, use, or install packages into a repository-local `.venv`.
+- Use `C:\Python\OptionChainAnalytics312\Scripts\python.exe` for all Python commands.
+- Run tools through that interpreter, for example `C:\Python\OptionChainAnalytics312\Scripts\python.exe -m pytest` and `C:\Python\OptionChainAnalytics312\Scripts\python.exe -m pip`.
+- If the environment is missing, create it with `py -3.12 -m venv C:\Python\OptionChainAnalytics312`; do not create `.venv` under the repository.
