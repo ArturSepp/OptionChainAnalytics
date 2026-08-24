@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "option-chain-analytics"
-version = "5.1.0"
+version = "5.2.0"
 description = "Point-in-time option-chain containers, feed normalisation, reconstruction, and queries for quantitative research"
 readme = "README.md"
 license = "MIT"

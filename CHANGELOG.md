@@ -2,7 +2,7 @@
 
 All notable public changes to OptionChainAnalytics are recorded here.
 
-## [Unreleased]
+## 5.2.0 - 2026-08-24
 
 ### Added
 
