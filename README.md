@@ -1,18 +1,29 @@
-# OptionChainAnalytics
+# option-chain-analytics
+
+**Point-in-time option-chain containers, feed normalisation, historical reconstruction, queries,
+and visualisation for quantitative research.**
+
+OCA is the data-container layer: provider credentials and data rights, stochastic-volatility
+models, strategy backtests, and proprietary datasets remain separate.
+
+**Install:** `pip install option-chain-analytics` · **Import:** `option_chain_analytics` · **Status:** Beta
 
 [![PyPI](https://img.shields.io/pypi/v/option-chain-analytics?style=flat-square)](https://pypi.org/project/option-chain-analytics/)
 [![Python](https://img.shields.io/pypi/pyversions/option-chain-analytics?style=flat-square)](https://pypi.org/project/option-chain-analytics/)
-[![License](https://img.shields.io/github/license/ArturSepp/OptionChainAnalytics.svg?style=flat-square)](LICENSE)
 [![CI](https://github.com/ArturSepp/OptionChainAnalytics/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ArturSepp/OptionChainAnalytics/actions/workflows/ci.yml)
+[![Docs](https://img.shields.io/badge/docs-online-blue?style=flat-square)](https://artursepp.github.io/OptionChainAnalytics/)
+[![License](https://img.shields.io/github/license/ArturSepp/OptionChainAnalytics.svg?style=flat-square)](LICENSE)
 [![Downloads](https://static.pepy.tech/badge/option-chain-analytics)](https://pepy.tech/project/option-chain-analytics)
+[![Monthly](https://static.pepy.tech/badge/option-chain-analytics/month)](https://pepy.tech/project/option-chain-analytics)
 
-OptionChainAnalytics provides point-in-time option-chain containers, feed normalisation,
-chain reconstruction, queries, and visualisation in Python for quantitative research.
+## Why option-chain-analytics
 
-It is the data-container layer: provider credentials and data rights, pricing models, portfolio
-backtests, and proprietary datasets remain separate. Pricing and implied-volatility inversion are delegated to
-[`vanilla-option-pricers`](https://github.com/ArturSepp/VanillaOptionPricers); generic time-series
-and plotting utilities come from [`qis`](https://github.com/ArturSepp/QuantInvestStrats).
+Provider feeds disagree on schemas, timestamps, identifiers, units, and available fields. OCA
+normalises those feeds into one long-form `OptionsDataDFs` panel, then reconstructs an auditable
+`SlicesChain` at an exact observation time or the latest explicitly requested prior observation.
+That point-in-time contract prevents a scheduled research path from silently selecting future
+data. The credential-free simulated-data path exercises the same containers and queries as the
+optional empirical adapters.
 
 ## Install
 
@@ -24,10 +35,12 @@ Install the published package:
 pip install option-chain-analytics
 ```
 
-For development from a clone:
+For development from a clone, use the locked test group:
 
 ```bash
-pip install -e .
+git clone https://github.com/ArturSepp/OptionChainAnalytics.git
+cd OptionChainAnalytics
+uv sync --locked --group test
 ```
 
 Provider-specific integrations are optional:
@@ -38,16 +51,20 @@ Provider-specific integrations are optional:
 | `deribit` | Deribit HTTP collection helpers |
 | `bloomberg` | Bloomberg retrieval through `bbg-fetch` |
 | `thetadata` | ThetaData national EOD equity/ETF option reports (Python 3.12+) |
-| `docs`, `dev`, `all` | Documentation, contributor tooling, or every optional integration |
+| `docs`, `all` | Documentation, or every optional integration |
 
 For example, `pip install "option-chain-analytics[cboe]"` installs the CBOE file dependency without
 installing unrelated network providers.
 
-## First success: no data or credentials
+Contributor test and lint tools live in the locked `test` and `lint` dependency groups rather than
+a published `dev` extra.
 
-The authoritative offline example constructs a deterministic Black-Scholes-Merton option panel,
-reconstructs a historical chain, queries its front-expiry ATM strike and volatility, and selects a
-weekly roll maturity:
+## Five-minute quickstart: no data or credentials
+
+The authoritative offline repository example constructs a deterministic Black-Scholes-Merton
+option panel, reconstructs a historical chain, queries its front-expiry ATM strike and volatility,
+and selects a weekly roll maturity. The `examples/` directory is not included in the wheel, so run
+this from the source clone created above:
 
 ```bash
 python examples/first_success.py
@@ -421,10 +438,14 @@ Start with the [documentation site](https://artursepp.github.io/OptionChainAnaly
 and [data-source guide](https://artursepp.github.io/OptionChainAnalytics/data_sources.html).
 
 ```bash
-pytest -q
-ruff check src tests examples tools docs/conf.py
-sphinx-build -W -b html docs docs/_build/html
-python -m build
+uv sync --locked --group test
+uv run --no-sync pytest -q
+uv run --locked --only-group lint ruff check .
+uv sync --locked --extra docs
+uv run --no-sync python -m sphinx -E -W --keep-going -b html docs docs/_build/html
+uv build --sdist --clear --out-dir dist
+uv build --wheel dist/*.tar.gz --out-dir dist
+uv run --no-project python tools/verify_distribution.py dist
 ```
 
 The installable package lives under `src/option_chain_analytics/`; repository-only scripts live in
@@ -435,12 +456,37 @@ implicit namespace-package support and therefore contain no `__init__.py` files.
 normalized caches, agent reports, and generated outputs live in ignored `data/`, `resources/`,
 `agents/`, and `outputs/` directories.
 
+## Ecosystem fit
+
+OCA depends on [`qis`](https://github.com/ArturSepp/QuantInvestStrats) for general time-series and
+visualisation utilities and on
+[`vanilla-option-pricers`](https://github.com/ArturSepp/VanillaOptionPricers) for vanilla prices,
+Greeks, and implied-volatility inversion. [`bbg-fetch`](https://github.com/ArturSepp/BloombergFetch)
+is an optional provider integration. OCA remains upstream of
+[`stochvolmodels`](https://github.com/ArturSepp/StochVolModels), which consumes it only through the
+optional research workflow. The [ArturSepp profile](https://github.com/ArturSepp) is the
+canonical ten-package catalogue.
+
+## Feedback & contributing
+
+- [Report a reproducible bug](https://github.com/ArturSepp/OptionChainAnalytics/issues/new?template=bug_report.yml), including the package version, Python/platform, provider or simulated-data path, timestamps, and expected versus actual result.
+- [Request a feature](https://github.com/ArturSepp/OptionChainAnalytics/issues/new?template=feature_request.yml), explaining which field, provider, or normalisation workflow is missing, the current workaround, and the smallest useful API.
+- Read [CONTRIBUTING.md](CONTRIBUTING.md) for the data-licensing boundary, development commands, point-in-time rules, and pull-request guidance.
+
 ## Research and licensing boundary
 
 OCA can provide a public, auditable input layer for empirical studies and replication. Strategy
 logic and the QF-paper backtests remain in SigmaStrats, and a public example is not expected to
 reproduce results computed from a private production dataset exactly.
 
-The software is released under the [MIT License](LICENSE). Dataset licences and access terms are
-separate from the software licence. Citation metadata is provided in [`CITATION.cff`](CITATION.cff),
-and contribution guidance is provided in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+Dataset licences and access terms are separate from the software licence.
+
+## Citation
+
+Machine-readable citation metadata for version 5.2.0 is provided in
+[`CITATION.cff`](CITATION.cff).
+
+## License
+
+The software is released under the [MIT License](LICENSE). The software licence does not grant
+rights to any empirical dataset loaded through an optional provider integration.
