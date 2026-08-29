@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://artursepp.github.io/OptionChainAnalytics/sitemap.xml
+Sitemap: https://optionchainanalytics.readthedocs.io/en/latest/sitemap.xml

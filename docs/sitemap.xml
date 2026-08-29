@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://artursepp.github.io/OptionChainAnalytics/index.html</loc></url>
-  <url><loc>https://artursepp.github.io/OptionChainAnalytics/first_success.html</loc></url>
-  <url><loc>https://artursepp.github.io/OptionChainAnalytics/schema.html</loc></url>
-  <url><loc>https://artursepp.github.io/OptionChainAnalytics/point_in_time.html</loc></url>
-  <url><loc>https://artursepp.github.io/OptionChainAnalytics/queries.html</loc></url>
-  <url><loc>https://artursepp.github.io/OptionChainAnalytics/data_sources.html</loc></url>
-  <url><loc>https://artursepp.github.io/OptionChainAnalytics/comparison.html</loc></url>
+  <url><loc>https://optionchainanalytics.readthedocs.io/en/latest/index.html</loc></url>
+  <url><loc>https://optionchainanalytics.readthedocs.io/en/latest/first_success.html</loc></url>
+  <url><loc>https://optionchainanalytics.readthedocs.io/en/latest/schema.html</loc></url>
+  <url><loc>https://optionchainanalytics.readthedocs.io/en/latest/point_in_time.html</loc></url>
+  <url><loc>https://optionchainanalytics.readthedocs.io/en/latest/queries.html</loc></url>
+  <url><loc>https://optionchainanalytics.readthedocs.io/en/latest/data_sources.html</loc></url>
+  <url><loc>https://optionchainanalytics.readthedocs.io/en/latest/comparison.html</loc></url>
 </urlset>

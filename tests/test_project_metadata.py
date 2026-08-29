@@ -9,7 +9,7 @@ except ModuleNotFoundError:  # Python 3.10
     import tomli as tomllib
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-PUBLIC_DOCS_ROOT = 'https://artursepp.github.io/OptionChainAnalytics/'
+PUBLIC_DOCS_ROOT = 'https://optionchainanalytics.readthedocs.io/en/latest/'
 
 
 def test_release_candidate_metadata_is_aligned() -> None:
