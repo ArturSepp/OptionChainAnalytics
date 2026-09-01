@@ -2,7 +2,9 @@
 
 All notable public changes to OptionChainAnalytics are recorded here.
 
-## 5.2.0 - 2026-08-24
+## [Unreleased]
+
+## [5.2.0] - 2026-08-24
 
 ### Added
 
@@ -15,7 +17,7 @@ All notable public changes to OptionChainAnalytics are recorded here.
   `test` for pytest and Python 3.10 TOML support, and `lint` for Ruff. The user-facing
   provider, documentation, and aggregate extras remain available.
 
-## 5.1.0 - 2026-08-22
+## [5.1.0] - 2026-08-22
 
 ### Changed
 
@@ -25,7 +27,7 @@ All notable public changes to OptionChainAnalytics are recorded here.
   automated pytest modules remain centralized under `tests/`.
 - Wheel and source-distribution verification reject development runners.
 
-## 5.0.0 - 2026-08-20
+## [5.0.0] - 2026-08-20
 
 ### Added
 
@@ -83,7 +85,7 @@ All notable public changes to OptionChainAnalytics are recorded here.
   duplicate CBOE-cache examples. The retained examples now use deterministic data, standardized
   local caches, or explicit provider access.
 
-## 4.0.0 - 2026-08-19
+## [4.0.0] - 2026-08-19
 
 ### Added
 
@@ -143,7 +145,7 @@ All notable public changes to OptionChainAnalytics are recorded here.
   `yfinance` dependency from `all`. The deterministic simulated-data and injected ThetaData-client
   examples remain the credential-free workflows.
 
-## 3.0.0 - 2026-08-16
+## [3.0.0] - 2026-08-16
 
 ### Changed
 
@@ -158,7 +160,7 @@ All notable public changes to OptionChainAnalytics are recorded here.
 - Removed the pre-3.0 source-label API, extra, constants, cache identifier, and directory name.
   Existing normalized SPX/VIX caches must be rebuilt once to receive the CBOE cache metadata.
 
-## 2.0.1 - 2026-08-16
+## [2.0.1] - 2026-08-16
 
 ### Added
 
@@ -185,7 +187,7 @@ All notable public changes to OptionChainAnalytics are recorded here.
 - Non-invertible CBOE quotes now produce `NaN` bid/ask IV rather than aborting normalization of a
   complete cache build.
 
-## 2.0.0 - 2026-08-16
+## [2.0.0] - 2026-08-16
 
 ### Added
 

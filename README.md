@@ -492,8 +492,20 @@ Dataset licences and access terms are separate from the software licence.
 
 ## Citation
 
-Machine-readable citation metadata for version 5.2.0 is provided in
+Machine-readable citation metadata is provided in
 [`CITATION.cff`](CITATION.cff).
+
+A copyable software citation is:
+
+```bibtex
+@misc{sepp2026optionchainanalytics,
+  title={option-chain-analytics: Point-in-time option-chain containers, feed normalisation, reconstruction, and queries for quantitative research},
+  author={Sepp, Artur},
+  year={2026},
+  version={5.2.0},
+  url={https://github.com/ArturSepp/OptionChainAnalytics}
+}
+```
 
 ## License
 
