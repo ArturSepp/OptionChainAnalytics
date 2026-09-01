@@ -11,7 +11,7 @@ models, strategy backtests, and proprietary datasets remain separate.
 [![PyPI](https://img.shields.io/pypi/v/option-chain-analytics?style=flat-square)](https://pypi.org/project/option-chain-analytics/)
 [![Python](https://img.shields.io/pypi/pyversions/option-chain-analytics?style=flat-square)](https://pypi.org/project/option-chain-analytics/)
 [![CI](https://github.com/ArturSepp/OptionChainAnalytics/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ArturSepp/OptionChainAnalytics/actions/workflows/ci.yml)
-[![Docs](https://img.shields.io/badge/docs-online-blue?style=flat-square)](https://artursepp.github.io/OptionChainAnalytics/)
+[![Docs](https://readthedocs.org/projects/optionchainanalytics/badge/?version=latest)](https://optionchainanalytics.readthedocs.io/en/latest/)
 [![License](https://img.shields.io/github/license/ArturSepp/OptionChainAnalytics.svg?style=flat-square)](LICENSE)
 [![Downloads](https://static.pepy.tech/badge/option-chain-analytics)](https://pepy.tech/project/option-chain-analytics)
 [![Monthly](https://static.pepy.tech/badge/option-chain-analytics/month)](https://pepy.tech/project/option-chain-analytics)
