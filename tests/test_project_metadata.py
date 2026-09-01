@@ -31,7 +31,7 @@ def test_release_candidate_metadata_is_aligned() -> None:
     )
     assert project['urls']['Documentation'] == PUBLIC_DOCS_ROOT
     assert f"version: {project['version']}" in citation
-    assert f"## {project['version']}" in changelog
+    assert f"## [{project['version']}]" in changelog
 
 
 def test_documentation_discovery_files_cover_public_pages() -> None:
