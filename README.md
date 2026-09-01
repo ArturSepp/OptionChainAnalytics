@@ -1,7 +1,6 @@
 # option-chain-analytics
 
-**Point-in-time option-chain containers, feed normalisation, historical reconstruction, queries,
-and visualisation for quantitative research.**
+**Point-in-time option-chain containers, feed normalisation, reconstruction, and queries for quantitative research**
 
 OCA is the data-container layer: provider credentials and data rights, stochastic-volatility
 models, strategy backtests, and proprietary datasets remain separate.
@@ -18,14 +17,24 @@ models, strategy backtests, and proprietary datasets remain separate.
 
 ## Why option-chain-analytics
 
-Provider feeds disagree on schemas, timestamps, identifiers, units, and available fields. OCA
-normalises those feeds into one long-form `OptionsDataDFs` panel, then reconstructs an auditable
+Provider feeds disagree on schemas, timestamps, identifiers, units, and available fields.
+
+### Key differentiators
+
+OCA normalises those feeds into one long-form `OptionsDataDFs` panel, then reconstructs an auditable
 `SlicesChain` at an exact observation time or the latest explicitly requested prior observation.
 That point-in-time contract prevents a scheduled research path from silently selecting future
-data. The credential-free simulated-data path exercises the same containers and queries as the
+data.
+
+## When to use it — and when not
+
+The credential-free simulated-data path exercises the same containers and queries as the
 optional empirical adapters.
 
-## Install
+OCA is the data-container layer: provider credentials and data rights, stochastic-volatility
+models, strategy backtests, and proprietary datasets remain separate.
+
+## Installation
 
 OptionChainAnalytics requires Python 3.10 or newer. CI covers Python 3.10 through 3.14.
 
@@ -456,7 +465,7 @@ implicit namespace-package support and therefore contain no `__init__.py` files.
 normalized caches, agent reports, and generated outputs live in ignored `data/`, `resources/`,
 `agents/`, and `outputs/` directories.
 
-## Ecosystem fit
+## Ecosystem
 
 OCA depends on [`qis`](https://github.com/ArturSepp/QuantInvestStrats) for general time-series and
 visualisation utilities and on
