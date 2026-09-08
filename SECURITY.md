@@ -2,9 +2,9 @@
 
 ## Supported versions
 
-Until the 2.0 release is published, security fixes are prepared for the latest code on `main`.
-After publication, only the latest released 2.x version will receive security fixes unless a
-release note states otherwise.
+Security fixes target the latest patch in the latest released minor series. Older minor
+series are unsupported unless a release note explicitly states otherwise. Upgrade to the
+latest published version before reporting an issue that may already be fixed.
 
 ## Reporting a vulnerability
 

@@ -149,3 +149,7 @@ venv.bak/
 .dmypy.json
 dmypy.json
 /testing/
+
+# Versioned GitHub automation helpers (Scripts/ above is for local environments).
+!/.github/scripts/
+!/.github/scripts/*.py

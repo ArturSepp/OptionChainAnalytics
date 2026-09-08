@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "source_registry": "ArturSepp/scripts/public_registry.json",
+  "import": "option_chain_analytics",
+  "core": [
+    "qis",
+    "vanilla_option_pricers"
+  ],
+  "optional": [
+    "bbg_fetch"
+  ],
+  "forbidden": [
+    "factorlasso",
+    "goal_based_allocation",
+    "optimalportfolios",
+    "privateassets",
+    "stochvolmodels",
+    "trendfollowing"
+  ],
+  "optional_adapters": [
+    {
+      "path": "src/option_chain_analytics/**/run_local/*_run.py",
+      "modules": [
+        "bbg_fetch"
+      ],
+      "reason": "Source-only provider diagnostics; package-root reachability remains prohibited."
+    }
+  ],
+  "development_imports": []
+}

@@ -3,12 +3,13 @@
 Publication is a maintainer-only action. Preparing or merging this repository does not authorize a
 tag, GitHub Release, documentation deployment, or package upload.
 
-## Release target
+## Release scope
 
-The approved release target is `5.2.0`. It adds `ChainTs.load_price_data` for chain-linked
-underlying series and adopts the shared CI core with uv-locked dependency groups and Linux,
-Windows, and macOS verification. The tag, GitHub Release, package upload, and Pages deployment
-must all refer to the same verified release commit and artefacts.
+Publish to PyPI when the accumulated, verified changes are ready. Choose the version from
+the complete change set and record it in the changelog. The source tag and uploaded wheel
+and source distribution identify the same verified commit. A GitHub Release is optional and,
+when created, uses that tag. Read the Docs hosts the documentation; the legacy Pages site
+only redirects existing links and is not rebuilt for each package release.
 
 ## Candidate verification
 
@@ -37,10 +38,14 @@ machine paths, and repository-only agent/output files.
 2. Confirm `project.version`, `CITATION.cff`, and the dated changelog identify the same release.
 3. Repeat every candidate check and inspect installed metadata.
 4. Obtain explicit approval to publish.
-5. Tag the verified commit `v5.2.0`, publish the same artefact to PyPI, create the GitHub Release,
-   and manually run the Pages workflow.
-6. Verify the PyPI README and links, GitHub release/tag, Pages canonical links, `robots.txt`, and
-   `sitemap.xml`; record immutable evidence in the ignored `agents/RELEASE_REPORT.md`.
+5. Tag the verified commit `v<version>` and publish the verified artefacts to PyPI. Optionally
+   create a GitHub Release from the same tag. Never move a published tag.
+6. Verify the PyPI version, hashes, metadata and links, the source tag, and the Read the Docs
+   build. Record immutable evidence in the ignored `agents/RELEASE_REPORT.md`.
+
+If publication is interrupted, inspect the files already on PyPI and compare their hashes
+with the verified artefacts before retrying. An existing version alone does not prove that
+publication completed correctly.
 
 Never rebuild between the final artefact verification and upload, and never include empirical data
 in a software release.

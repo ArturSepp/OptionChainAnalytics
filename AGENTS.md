@@ -25,27 +25,34 @@ Distribution name `option-chain-analytics`; import name `option_chain_analytics`
 
 ## Ecosystem position
 
-This package is part of the open-source Python stack maintained at
-[github.com/ArturSepp](https://github.com/ArturSepp). Before implementing anything non-trivial,
-check whether it already belongs in one of these:
+This package is one of ten public Python libraries maintained at
+[github.com/ArturSepp](https://github.com/ArturSepp). Check the owning package before
+adding a capability or copying code between repositories.
 
 | Package | Repository | Purpose |
 |---|---|---|
-| `qis` | QuantInvestStrats | Time-series analytics, schedules, reporting, and visualisation |
-| `option-chain-analytics` | OptionChainAnalytics | Option-feed normalisation and point-in-time chain reconstruction |
-| `vanilla-option-pricers` | VanillaOptionPricers | Vanilla prices, Greeks, and implied-volatility inversion |
-| `stochvolmodels` | StochVolModels | Stochastic-volatility pricing, simulation, and calibration |
-| `bbg-fetch` | BloombergFetch | Bloomberg data retrieval |
-| `optimalportfolios` | OptimalPortfolios | Portfolio construction and backtesting |
-| `factorlasso` | factorlasso | Sparse factor models and covariance estimation |
-| `trendfollowing` | TrendFollowingSystems | Trend-following theory and replication |
-| `goal-based-allocation` | GoalBasedAllocation | Dynamic allocation under regime-switching jump-diffusions |
+| `qis` | QuantInvestStrats | performance analytics, backtesting, and factsheet reporting |
+| `optimalportfolios` | OptimalPortfolios | portfolio construction and rolling backtesting |
+| `factorlasso` | FactorLasso | sparse factor-model estimation |
+| `bbg-fetch` | BloombergFetch | Bloomberg data in pandas DataFrames |
+| `stochvolmodels` | StochVolModels | stochastic-volatility pricing and calibration |
+| `trendfollowing` | TrendFollowingSystems | closed-form trend-following analytics |
+| `privateassets` | PrivateAssets | multi-factor PME for private assets |
+| `goal-based-allocation` | GoalBasedAllocation | goal-based allocation under regime-switching jump-diffusions |
+| `vanilla-option-pricers` | VanillaOptionPricers | Numba-vectorised BSM and Bachelier pricing |
+| `option-chain-analytics` | OptionChainAnalytics | point-in-time option-chain data and queries |
 
-OCA consumes `qis` and `vanilla-option-pricers`. `bbg-fetch` is an optional provider integration.
-StochVolModels consumes OCA only through its optional experiment adapter, and the private
-SigmaStrats backtester consumes OCA as its data layer. This direction is deliberate: **OCA never
-imports StochVolModels or SigmaStrats**. Do not vendor or copy code between repositories; put a
-capability in the package that owns it.
+Core dependency edges: `optimalportfolios` consumes `qis` and `factorlasso`;
+`trendfollowing` and `privateassets` consume `qis`; `stochvolmodels` consumes
+`vanilla-option-pricers`; `option-chain-analytics` consumes `qis` and
+`vanilla-option-pricers`. The remaining packages have no core stack dependencies.
+
+Optional edges: PrivateAssets' `factors` extra adds `factorlasso`; StochVolModels'
+`research` extra adds `qis` and `option-chain-analytics`; OCA's `bloomberg` and `all`
+extras add `bbg-fetch`. Core imports must work without optional dependencies.
+OCA never imports StochVolModels or the private SigmaStrats consumer. Exact
+maintainer-tool exceptions are recorded in `.github/stack-policy.json`; they do
+not authorise adding those dependencies to core or importing them at package root.
 
 ## Repository layout
 
@@ -194,7 +201,7 @@ the generated shared-agent block below; do not edit that generated block directl
 <!-- ===== SHARED AGENT CORE (consumer variant) — begin =====
      Generated from SHARED_AGENT_CORE.md in the maintainer's project knowledge. Do not hand-edit
      between these markers — propose the change to the maintainer instead. Variants: builder
-     (qis) / consumer / standalone. Last synced 2026-08-16, agent core v1.4. -->
+     (qis) / consumer / standalone. Last synced 2026-09-08, agent core v1.5 -->
 
 ## Domain invariants
 
@@ -271,9 +278,11 @@ list is binding.
 5. `pytest -q`, Ruff, offline first-success, warning-free docs, distribution build, and
    `tools/verify_distribution.py` all pass.
 
-Then commit, tag `v<version>`, publish the wheel/source distribution, and create the matching
-GitHub Release. Do not bump versions as part of unrelated work, and do not publish without the
-maintainer explicitly asking for a release.
+For an authorized publication, commit, tag the exact main-reachable source as
+`v<version>`, then verify and publish its wheel/source distribution. Frequent PyPI updates
+are supported. A GitHub Release page is optional and created only when requested. Local
+builds need no release; development versions on main may be ahead of PyPI. Do not publish
+or bump a version for unrelated work.
 
 ## Known issues and compatibility surfaces
 
