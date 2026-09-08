@@ -4,6 +4,27 @@ All notable public changes to OptionChainAnalytics are recorded here.
 
 ## [Unreleased]
 
+## [5.2.1] - 2026-09-08
+
+### Added
+
+- Added explicit stack dependency and optional-import boundary checks, including
+  isolated maintainer adapters, plus a fresh Python 3.10 lowest-direct dependency CI lane.
+
+- Added tag-driven PyPI Trusted Publishing with release-identity and distribution
+  validation; creating a GitHub Release remains optional.
+
+- Added a lowest-dependency CI variant for the optional `bloomberg` extra, with
+  core-import isolation checks that do not require live Bloomberg access.
+
+### Changed
+
+- Aligned package summaries, software citations, README navigation, and documentation
+  landing pages with the canonical package identity and Read the Docs documentation.
+
+- Pointed package documentation metadata to the Read the Docs root and replaced
+  the legacy GitHub Pages documentation build with redirects.
+
 ## [5.2.0] - 2026-08-24
 
 ### Added

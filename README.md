@@ -68,7 +68,9 @@ installing unrelated network providers.
 Contributor test and lint tools live in the locked `test` and `lint` dependency groups rather than
 a published `dev` extra.
 
-## Five-minute quickstart: no data or credentials
+<a id="five-minute-quickstart-no-data-or-credentials"></a>
+
+## Five-minute quickstart
 
 The authoritative offline repository example constructs a deterministic Black-Scholes-Merton
 option panel, reconstructs a historical chain, queries its front-expiry ATM strike and volatility,
@@ -128,7 +130,7 @@ dependency. Black-Scholes analytics remain delegated to `vanilla-option-pricers`
 
 Local adapters cover Deribit/Tardis crypto histories and SPX/VIX CBOE fitted-chain files. These
 datasets are not distributed. `OCA_DATA_PATH` holds raw provider archives, `OCA_CACHE_PATH` holds
-normalized reusable chains, and `OCA_OUTPUT_PATH` holds generated reports. Their source-checkout
+normalised reusable chains, and `OCA_OUTPUT_PATH` holds generated reports. Their source-checkout
 defaults are the ignored `data/`, `resources/`, and `outputs/` directories. The
 [data catalogue](docs/data_sources.md#canonical-data-catalogue-and-storage) defines every supported
 provider directory, cache filename, and loader. CBOE files can be mapped with:
@@ -150,7 +152,7 @@ The CBOE mapper always infers bid/ask implied volatilities from the source bid/a
 the contemporaneous forward, discount factor, and time to maturity. This keeps every CBOE-backed
 `OptionsDataDFs` instance on the same complete schema.
 
-For repeated empirical studies, build one normalized Parquet cache per underlying after installing
+For repeated empirical studies, build one normalised Parquet cache per underlying after installing
 the `cboe` extra:
 
 ```python
@@ -192,7 +194,7 @@ $thetaKey = Read-Host "ThetaData API key" -AsSecureString
 $env:THETADATA_API_KEY = [System.Net.NetworkCredential]::new('', $thetaKey).Password
 ```
 
-Credentials and raw provider responses are never written to OCA's normalized cache.
+Credentials and raw provider responses are never written to OCA's normalised cache.
 
 #### 2. Build or resume a local history
 
@@ -206,7 +208,7 @@ python examples/build_thetadata_eod_cache.py \
     --start-date 2023-06-01
 ```
 
-By default this stores normalized files under
+By default this stores normalised files under
 `resources/thetadata_options/nvda/{options,spot}/YYYY-MM.parquet`. Set `OCA_CACHE_PATH` or pass
 `--output-dir` to choose another private cache root. The default request keeps expiries from 0 to
 60 calendar DTE and 20 strikes around spot; pass `--all-strikes` only when the larger download is
@@ -441,10 +443,10 @@ uses the parity-only policy. Every bid, mark, and ask IV and every mark Greek is
 
 ## Documentation and development
 
-Start with the [documentation site](https://artursepp.github.io/OptionChainAnalytics/), then read the
-[schema contract](https://artursepp.github.io/OptionChainAnalytics/schema.html),
-[point-in-time reconstruction](https://artursepp.github.io/OptionChainAnalytics/point_in_time.html),
-and [data-source guide](https://artursepp.github.io/OptionChainAnalytics/data_sources.html).
+Start with the [documentation site](https://optionchainanalytics.readthedocs.io/en/latest/), then read the
+[schema contract](https://optionchainanalytics.readthedocs.io/en/latest/schema.html),
+[point-in-time reconstruction](https://optionchainanalytics.readthedocs.io/en/latest/point_in_time.html),
+and [data-source guide](https://optionchainanalytics.readthedocs.io/en/latest/data_sources.html).
 
 ```bash
 uv sync --locked --group test
@@ -462,8 +464,16 @@ The installable package lives under `src/option_chain_analytics/`; repository-on
 their implementation in `src/option_chain_analytics/**/run_local/*_run.py`, expose `Locals` and
 `run_local(local=...)`, and are excluded from distributions. The `run_local` folders use Python's
 implicit namespace-package support and therefore contain no `__init__.py` files. Raw datasets,
-normalized caches, agent reports, and generated outputs live in ignored `data/`, `resources/`,
+normalised caches, agent reports, and generated outputs live in ignored `data/`, `resources/`,
 `agents/`, and `outputs/` directories.
+
+## Research and licensing boundary
+
+OCA can provide a public, auditable input layer for empirical studies and replication. Strategy
+logic and the QF-paper backtests remain in SigmaStrats, and a public example is not expected to
+reproduce results computed from a private production dataset exactly.
+
+Dataset licences and access terms are separate from the software licence.
 
 ## Ecosystem
 
@@ -482,14 +492,6 @@ canonical ten-package catalogue.
 - [Request a feature](https://github.com/ArturSepp/OptionChainAnalytics/issues/new?template=feature_request.yml), explaining which field, provider, or normalisation workflow is missing, the current workaround, and the smallest useful API.
 - Read [CONTRIBUTING.md](CONTRIBUTING.md) for the data-licensing boundary, development commands, point-in-time rules, and pull-request guidance.
 
-## Research and licensing boundary
-
-OCA can provide a public, auditable input layer for empirical studies and replication. Strategy
-logic and the QF-paper backtests remain in SigmaStrats, and a public example is not expected to
-reproduce results computed from a private production dataset exactly.
-
-Dataset licences and access terms are separate from the software licence.
-
 ## Citation
 
 Machine-readable citation metadata is provided in
@@ -502,7 +504,7 @@ A copyable software citation is:
   title={option-chain-analytics: Point-in-time option-chain containers, feed normalisation, reconstruction, and queries for quantitative research},
   author={Sepp, Artur},
   year={2026},
-  version={5.2.0},
+  version={5.2.1},
   url={https://github.com/ArturSepp/OptionChainAnalytics}
 }
 ```
