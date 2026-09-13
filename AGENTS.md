@@ -194,14 +194,10 @@ caches. Do not introduce absolute machine paths.
 
 ## Repository-specific agent artifacts
 
-By maintainer direction, all OCA roadmaps, execution plans, audits, and reports live in the ignored
-`agents/` directory. This repository-specific rule overrides the generic roadmap location inside
-the generated shared-agent block below; do not edit that generated block directly.
-
 <!-- ===== SHARED AGENT CORE (consumer variant) — begin =====
      Generated from SHARED_AGENT_CORE.md in the maintainer's project knowledge. Do not hand-edit
      between these markers — propose the change to the maintainer instead. Variants: builder
-     (qis) / consumer / standalone. Last synced 2026-09-08, agent core v1.5 -->
+     (qis) / consumer / standalone. Last synced 2026-09-13, agent core v1.6 -->
 
 ## Domain invariants
 
@@ -260,12 +256,14 @@ may also be running.
 - Do not delete or overwrite a cache unless the exact target is resolved and an explicit rebuild
   was requested. Cache builders use unique temporary files for concurrency safety.
 
-## Roadmap execution
+## Agent-generated artifacts
 
-Feature roadmaps normally live at the repository root as `ROADMAP_<feature>.md`. In OCA, the
-repository-specific rule above overrides this: roadmaps and execution reports live in ignored
-`agents/`. A stage is complete only when its stated verification command passes; its out-of-scope
-list is binding.
+All agent-generated roadmaps, execution plans, audits, reports, handoffs, and other working
+outputs live under the repository-root `agents/` directory, which is local and ignored by Git.
+Never create `ROADMAP_*.md`, `Claude outputs/`, `Codex outputs/`, or similar agent-output
+artifacts at the repository root. Name feature roadmaps `agents/ROADMAP_<feature>.md`. An
+execution request names the file and stage. A stage is complete when its stated verification
+command passes; its out-of-scope list is binding.
 
 <!-- ===== SHARED AGENT CORE — end ===== -->
 
