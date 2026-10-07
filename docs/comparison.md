@@ -1,3 +1,11 @@
+---
+myst:
+  html_meta:
+    description: >-
+      A dated comparison of option-chain-analytics with QuantLib-Python, OpenBB and Optopsy by
+      scope, historical point-in-time option panels, provider coupling, and when to choose each.
+---
+
 # Choosing an option-data tool
 
 This comparison was checked on 2026-08-16 against each project's primary documentation. The tools

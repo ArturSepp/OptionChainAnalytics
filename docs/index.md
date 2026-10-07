@@ -1,3 +1,12 @@
+---
+myst:
+  html_meta:
+    description: >-
+      Documentation for option-chain-analytics: point-in-time option-chain containers in Python,
+      feed normalisation for CBOE, Tardis, Deribit and ThetaData data, historical chain
+      reconstruction and chain queries.
+---
+
 # option-chain-analytics
 
 <a id="optionchainanalytics-documentation"></a>
