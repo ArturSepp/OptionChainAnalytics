@@ -1,3 +1,12 @@
+---
+myst:
+  html_meta:
+    description: >-
+      The OptionsDataDFs schema of option-chain-analytics: one row per contract and observation
+      time, the units and conventions of each option column, the aligned spot frame, and a minimal
+      validation.
+---
+
 # `OptionsDataDFs` schema
 
 `OptionsDataDFs(chain_ts, spot_data, ticker)` holds a long option-observation panel and an aligned

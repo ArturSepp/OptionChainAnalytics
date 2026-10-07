@@ -121,6 +121,15 @@ def test_documentation_pages_carry_short_titles_and_a_root_homepage_canonical(tm
     assert f'<link rel="canonical" href="{PUBLIC_DOCS_ROOT}queries.html"' in head('queries')
 
 
+def test_documentation_pages_state_a_meta_description() -> None:
+    """Every page states, in its MyST front matter, the description that search results show."""
+    pages = sorted((REPOSITORY_ROOT / 'docs').glob('*.md'))
+    assert pages
+    for page in pages:
+        text = page.read_text(encoding='utf-8')
+        assert text.startswith('---\nmyst:\n  html_meta:\n    description: >-\n'), page.name
+
+
 def test_community_health_files_exist() -> None:
     required = {
         'CODE_OF_CONDUCT.md',
