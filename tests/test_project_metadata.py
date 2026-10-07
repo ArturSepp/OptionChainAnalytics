@@ -3,7 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 import re
 import runpy
+import subprocess
 import sys
+
+import pytest
 
 try:
     import tomllib
@@ -46,9 +49,13 @@ def test_documentation_discovery_routes_public_pages_to_read_the_docs(tmp_path, 
     assert conf['html_baseurl'] == PUBLIC_DOCS_ROOT
     with (REPOSITORY_ROOT / 'pyproject.toml').open('rb') as stream:
         assert conf['release'] == tomllib.load(stream)['project']['version']
+    # stable and latest serve the same pages, so both name latest as canonical; numbered versions keep theirs
     stable = 'https://optionchainanalytics.readthedocs.io/en/stable/'
     monkeypatch.setenv('READTHEDOCS_CANONICAL_URL', stable)
-    assert runpy.run_path(str(REPOSITORY_ROOT / 'docs/conf.py'))['html_baseurl'] == stable
+    assert runpy.run_path(str(REPOSITORY_ROOT / 'docs/conf.py'))['html_baseurl'] == PUBLIC_DOCS_ROOT
+    numbered = 'https://optionchainanalytics.readthedocs.io/en/5.2.1/'
+    monkeypatch.setenv('READTHEDOCS_CANONICAL_URL', numbered)
+    assert runpy.run_path(str(REPOSITORY_ROOT / 'docs/conf.py'))['html_baseurl'] == numbered
 
     source = tmp_path / 'rendered'
     output = tmp_path / 'redirects'
@@ -67,6 +74,51 @@ def test_documentation_discovery_routes_public_pages_to_read_the_docs(tmp_path, 
         assert 'Original documentation content' not in document
     workflow = (REPOSITORY_ROOT / '.github/workflows/docs.yml').read_text(encoding='utf-8')
     assert 'path: docs/_build/redirects' in workflow
+
+
+def test_documentation_pages_carry_short_titles_and_a_root_homepage_canonical(tmp_path, monkeypatch) -> None:
+    """Furo would end every title with the full html_title and canonicalise the homepage as index.html."""
+    for module in ('sphinx', 'furo', 'myst_parser'):
+        pytest.importorskip(module)
+    monkeypatch.delenv('READTHEDOCS_CANONICAL_URL', raising=False)
+    monkeypatch.setattr(sys, 'path', list(sys.path))
+    conf = runpy.run_path(str(REPOSITORY_ROOT / 'docs/conf.py'))
+    templates = [str(REPOSITORY_ROOT / 'docs' / path) for path in conf.get('templates_path', [])]
+    source = tmp_path / 'source'
+    source.mkdir()
+    (source / 'conf.py').write_text(
+        'import runpy\n'
+        f"_site = runpy.run_path({str(REPOSITORY_ROOT / 'docs/conf.py')!r})\n"
+        "extensions = ['myst_parser']\n"
+        "html_theme = 'furo'\n"
+        f'templates_path = {templates!r}\n'
+        "for _key in ('project', 'html_title', 'html_baseurl'):\n"
+        '    globals()[_key] = _site[_key]\n'
+        "setup = _site.get('setup')\n",
+        encoding='utf-8',
+    )
+    (source / 'index.md').write_text('# Home\n\n```{toctree}\nqueries\n```\n', encoding='utf-8')
+    (source / 'queries.md').write_text('# Point-in-time chain queries\n\nText.\n', encoding='utf-8')
+    output = tmp_path / 'html'
+    result = subprocess.run(
+        [sys.executable, '-m', 'sphinx', '-W', '-q', '-b', 'html', str(source), str(output)],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+    def head(name: str) -> str:
+        return (output / f'{name}.html').read_text(encoding='utf-8').split('</head>')[0]
+
+    assert re.findall(r'<title>(.*?)</title>', head('index')) == [
+        'option-chain-analytics - point-in-time option-chain data and queries'
+    ]
+    assert re.findall(r'<title>(.*?)</title>', head('queries')) == [
+        'Point-in-time chain queries - option-chain-analytics'
+    ]
+    assert f'<link rel="canonical" href="{PUBLIC_DOCS_ROOT}"' in head('index')
+    assert f'<link rel="canonical" href="{PUBLIC_DOCS_ROOT}queries.html"' in head('queries')
 
 
 def test_community_health_files_exist() -> None:
