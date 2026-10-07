@@ -4,6 +4,16 @@ All notable public changes to OptionChainAnalytics are recorded here.
 
 ## [Unreleased]
 
+### Fixed
+
+- Titled documentation pages other than the homepage `<page title> - option-chain-analytics`
+  instead of ending every title with the full site title, which search results cut off.
+
+- Made documentation pages built for the `stable` version name their `latest` address as
+  canonical, so search engines no longer see each page twice. Numbered versions keep their own
+  address, and the homepage names the site root rather than `index.html`. No signature or
+  computed value changes.
+
 ## [5.2.1] - 2026-09-08
 
 ### Added
