@@ -1,3 +1,12 @@
+---
+myst:
+  html_meta:
+    description: >-
+      Point-in-time option-chain reconstruction with option-chain-analytics: exact and previous time
+      selection in create_chain_at_time, forwards from contemporaneous rows, and the no-look-ahead
+      contract.
+---
+
 # Point-in-time reconstruction
 
 `create_chain_at_time` reconstructs the expiry slices available at one observation

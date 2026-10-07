@@ -1,3 +1,12 @@
+---
+myst:
+  html_meta:
+    description: >-
+      Queries on a reconstructed option chain with option-chain-analytics: the maturity map, ATM
+      strike and implied volatility on the strike grid, the BELOW and ABOVE grid convention, and
+      weekly roll expiries.
+---
+
 # Chain and roll queries
 
 Once reconstructed, a `SlicesChain` exposes its maturity map and each `ExpirySlice` exposes strike

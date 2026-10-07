@@ -1,3 +1,12 @@
+---
+myst:
+  html_meta:
+    description: >-
+      A deterministic, offline first example for option-chain-analytics: a synthetic Black-Scholes-
+      Merton option panel with two observation times and three expiries, its ATM strike and
+      volatility, and a weekly roll expiry.
+---
+
 # First success
 
 This example is the release-gating public workflow. It creates two observation times, three
