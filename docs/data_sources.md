@@ -1,3 +1,12 @@
+---
+myst:
+  html_meta:
+    description: >-
+      Data sources for option-chain-analytics: raw and cache storage paths, loaders for CBOE
+      SPX/VIX, Tardis and Deribit crypto, and ThetaData equity option data, provider conventions and
+      data-rights boundaries.
+---
+
 # Data sources and access boundaries
 
 OCA normalises feeds but does not grant data rights. Empirical datasets remain outside the
