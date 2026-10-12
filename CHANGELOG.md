@@ -6,6 +6,10 @@ All notable public changes to OptionChainAnalytics are recorded here.
 
 ### Fixed
 
+- CBOE cache metadata now labels unchanged premiums as `index_points`, with USD multiplier 1
+  and contract size 100 kept separate. The reader accepts the known schema-3 `usd_per_contract`
+  mislabel while preserving policy and fingerprint validation. Documented expiry clocks now
+  match the existing SPXW/VIX mapping; numerical values and private caches are unchanged.
 - `create_chain_at_time` uses its unweighted forward fallback when an expiry's
   open interest is entirely zero or missing, instead of reconstructing a zero forward.
   Weighted aggregation with nonzero weights and observation-time selection are unchanged.

@@ -162,8 +162,12 @@ both wheel and source distribution from clean, outside-checkout environments.
 - Bid/ask IV is always inferred from each row's bid/ask price using its contemporaneous forward,
   discount factor, and time to maturity. There is no switch that permits partially normalized
   CBOE data.
-- Source `date` is interpreted as 16:00 New York time and `exdate` as 16:15 New York time, matching
-  the documented source convention. Both become UTC internally.
+- Source EOD `date` is 16:00 New York time. The SPX dataset is mapped as SPXW with 16:00 PM
+  expiry; VIX uses its 09:30 morning SOQ. Both become UTC, and ACT/365 maturity is recomputed.
+  These fixed clocks do not encode early-close holidays; never substitute legacy 16:15 `dte`.
+- CBOE premiums are index points, with USD multiplier 1 and separate contract size 100.
+  New caches label this `index_points`; the schema-3 `usd_per_contract` label is a known
+  historical mislabel accepted only with the other full policy/fingerprint checks intact.
 - `build_local_cboe_options_cache` writes one Zstandard-compressed Parquet file per underlying:
   `spx_options_oca.parquet` and `vix_options_oca.parquet`. Do not combine the histories or replace
   them with CSV.

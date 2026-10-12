@@ -92,6 +92,24 @@ The consolidated SPX dataset contains SPXW contracts and uses PM settlement at 1
 time. VIX/VIXW uses the morning Special Opening Quotation at 09:30 New York time; its last trading
 day is normally the preceding business day. OCA recomputes expiry and time to maturity from these
 product policies instead of preserving the legacy files' common 16:15 `dte` convention.
+These are fixed dataset-mapping clocks, without an early-close holiday calendar. They are
+not a universal schedule for AM-settled SPX or every SPXW expiration. Cboe's
+[SPX specifications](https://www.cboe.com/tradable-products/sp-500/spx-options/spx-specifications)
+distinguish the contract types and early-close exceptions.
+
+Prices remain in index points. `usd_multiplier=1` converts them to USD per underlying unit;
+`contract_size=100` is separate. A 2.5-point premium therefore represents USD 250 per contract.
+Apply contract size only when a contract value is required, not when comparing Black prices
+with quoted premiums. Cboe specifies the 100 multiplier for both
+[SPX](https://www.cboe.com/tradable-products/sp-500/spx-options/spx-specifications) and
+[VIX](https://www.cboe.com/tradable-products/vix/vix-options/specifications/).
+
+New CBOE caches record `oca_price_convention=index_points`. The reader also recognizes
+`usd_per_contract` in existing schema-3 CBOE caches as a historical metadata mislabel;
+those caches already contain index-point prices. All provider, product, analytics, schema
+and available source-fingerprint checks still apply. Reading performs no price scaling
+or cache rewrite. Other price labels are rejected; older readers may reject the corrected
+label and need a package update.
 
 The legacy fitted `impl_fw`, `impl_df`, `mid_vols`, `delta`, and `vega` columns are not trusted by
 the cache converter. For every observation/expiration, OCA replaces the old fitted mark with the

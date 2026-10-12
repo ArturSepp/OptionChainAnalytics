@@ -154,7 +154,7 @@ def _cboe_cache_metadata(ticker: str, source_path: Path) -> Dict[bytes, bytes]:
         'oca_provider': 'cboe',
         'oca_frequency': 'eod',
         'oca_observation_policy': 'exact_1600_new_york',
-        'oca_price_convention': 'usd_per_contract',
+        'oca_price_convention': 'index_points',
         'oca_settlement_policy': policy['settlement_policy'],
         'oca_analytics': CBOE_ANALYTICS_POLICY,
         'oca_source_file': source_path.name,
@@ -166,7 +166,11 @@ def _cboe_cache_metadata(ticker: str, source_path: Path) -> Dict[bytes, bytes]:
 
 
 def _validate_cboe_cache(cache_path: Path, ticker: str, source_path: Path) -> None:
-    """Reject a CBOE cache whose policy, schema, or fingerprint is stale."""
+    """Reject stale policies/fingerprints; recognize the schema-3 price-label typo.
+
+    Both accepted labels describe unchanged index-point quotes, USD multiplier 1,
+    and separate contract size 100. No stored prices are rescaled on reading.
+    """
     metadata = _read_cache_metadata(cache_path=cache_path)
     policy = _get_cboe_product_policy(ticker=ticker)
     expected = {
@@ -177,7 +181,6 @@ def _validate_cboe_cache(cache_path: Path, ticker: str, source_path: Path) -> No
         'oca_provider': 'cboe',
         'oca_frequency': 'eod',
         'oca_observation_policy': 'exact_1600_new_york',
-        'oca_price_convention': 'usd_per_contract',
         'oca_settlement_policy': policy['settlement_policy'],
         'oca_analytics': CBOE_ANALYTICS_POLICY,
     }
@@ -186,6 +189,11 @@ def _validate_cboe_cache(cache_path: Path, ticker: str, source_path: Path) -> No
         for key, value in expected.items()
         if metadata.get(key) != value
     }
+    price_label = metadata.get('oca_price_convention')
+    legacy_points = (price_label == 'usd_per_contract'
+                     and metadata.get('oca_cache_schema_version') == '3')
+    if price_label != 'index_points' and not legacy_points:
+        mismatches['oca_price_convention'] = (price_label, 'index_points')
     if source_path.exists():
         source_stat = source_path.stat()
         source_expected = {

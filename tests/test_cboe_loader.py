@@ -170,6 +170,7 @@ def test_cboe_normalized_parquet_cache_round_trip_and_date_filter(tmp_path: Path
     assert metadata[b'oca_cache_schema_version'].decode() == CBOE_CACHE_SCHEMA_VERSION
     assert metadata[b'oca_settlement_policy'].decode() == 'spxw_pm_1600_new_york'
     assert metadata[b'oca_analytics'].decode() == 'parity_huber_vip_bsm'
+    assert metadata[b'oca_price_convention'] == b'index_points'
     assert loaded['chain_ts'][SliceColumn.EXCHANGE_TIME.value].nunique() == 1
     assert loaded['chain_ts'][SliceColumn.EXCHANGE_TIME.value].iloc[0] == pd.Timestamp(
         '2024-01-03 21:00:00+00:00'
@@ -186,6 +187,62 @@ def test_cboe_loader_rejects_cache_when_source_changes(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match='incompatible or stale CBOE cache'):
         load_local_cboe_options_data(ticker='VIX', local_path=str(tmp_path))
+
+
+@pytest.mark.parametrize('ticker', ['SPX', 'VIX'])
+def test_cboe_price_labels_preserve_values_and_legacy_fingerprint(tmp_path, ticker):
+    """Real cache round trip: a label correction must never scale stored quotes."""
+    pq = pytest.importorskip('pyarrow.parquet')
+    source = _write_cboe_source(tmp_path, ticker, _source_frame())
+    cache = build_local_cboe_options_cache(ticker=ticker, local_path=str(tmp_path))
+    original = load_local_cboe_options_data(ticker=ticker, local_path=str(tmp_path))['chain_ts']
+    table = pq.read_table(cache)
+    assert table.schema.metadata[b'oca_price_convention'] == b'index_points'
+    for label in (b'index_points', b'usd_per_contract'):
+        metadata = {**table.schema.metadata, b'oca_price_convention': label}
+        pq.write_table(table.replace_schema_metadata(metadata), cache)
+        actual = load_local_cboe_options_data(ticker=ticker, local_path=str(tmp_path))['chain_ts']
+        pd.testing.assert_frame_equal(actual, original, check_exact=True)
+        np.testing.assert_array_equal(actual.bid_price, [129, 29, 64, 64])
+        assert actual.usd_multiplier.eq(1).all() and actual.contract_size.eq(100).all()
+    # Even the known legacy label must not bypass product policy or source validation.
+    invalid = {**metadata, b'oca_settlement_policy': b'legacy_1615_new_york'}
+    pq.write_table(table.replace_schema_metadata(invalid), cache)
+    with pytest.raises(ValueError, match='oca_settlement_policy'):
+        load_local_cboe_options_data(ticker=ticker, local_path=str(tmp_path))
+    pq.write_table(table.replace_schema_metadata(metadata), cache)
+    pd.concat([_source_frame(), _source_frame()], ignore_index=True).to_feather(source)
+    with pytest.raises(ValueError, match='oca_source_'):
+        load_local_cboe_options_data(ticker=ticker, local_path=str(tmp_path))
+
+
+@pytest.mark.parametrize('label', [b'usd_per_unit', b'cents', b'', None])
+def test_cboe_cache_rejects_unknown_price_labels(tmp_path, label):
+    pq = pytest.importorskip('pyarrow.parquet')
+    _write_cboe_source(tmp_path, 'SPX', _source_frame())
+    cache = build_local_cboe_options_cache(ticker='SPX', local_path=str(tmp_path))
+    table = pq.read_table(cache)
+    metadata = dict(table.schema.metadata)
+    if label is None:
+        metadata.pop(b'oca_price_convention')
+    else:
+        metadata[b'oca_price_convention'] = label
+    pq.write_table(table.replace_schema_metadata(metadata), cache)
+    with pytest.raises(ValueError, match='oca_price_convention'):
+        load_local_cboe_options_data(ticker='SPX', local_path=str(tmp_path))
+
+
+def test_cboe_points_contract_value_and_dst_are_separate():
+    source = _source_frame().assign(date=pd.Timestamp('2024-03-08 16:00'),
+                                    exdate=pd.Timestamp('2024-03-11'),
+                                    best_bid=2.5, best_offer=3.0)
+    frame = map_cboe_options_data(source, ticker='SPX')['chain_ts']
+    assert frame.exchange_time.eq(pd.Timestamp('2024-03-08 21:00Z')).all()
+    assert frame.expiry.eq(pd.Timestamp('2024-03-11 20:00Z')).all()
+    np.testing.assert_allclose(frame.ttm, 71 / (365 * 24), rtol=0, atol=1e-15)
+    assert frame.bid_price.eq(2.5).all()
+    assert (frame.bid_price * frame.usd_multiplier).eq(2.5).all()
+    assert (frame.bid_price * frame.usd_multiplier * frame.contract_size).eq(250).all()
 
 
 def _write_tardis_sources(directory: Path, ticker: str = 'BTC') -> tuple[Path, Path]:
