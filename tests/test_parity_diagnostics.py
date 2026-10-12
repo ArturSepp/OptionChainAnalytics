@@ -91,3 +91,31 @@ def test_unverified_payoff_and_mismatched_forward_are_not_validated():
     assert result.table("pairs").reason.iloc[0] == "inconsistent_declared_forward_or_discount"
     with pytest.raises(ValueError, match="bounds"):
         report(frame, time, config, discount_anchor=1.02, discount_bounds=(None, 1))
+
+
+@pytest.mark.parametrize("time_shift", [0, 1, -10000000])
+def test_parity_deserializes_input_a_constant_number_of_times(monkeypatch, time_shift):
+    """Large immutable reports must not be parsed again for every strike pair."""
+    from option_chain_analytics.diagnostics import QuoteDiagnosticReport
+
+    frame, time, config = fixture()
+    requested = time - pd.Timedelta(seconds=time_shift)
+    quality = diagnose_quotes(frame, config=config, requested_time=requested,
+                              source_time=min(time, requested))
+    expected = diagnose_parity(quality, spread_floor=0.005).to_dict()
+    deserialize = QuoteDiagnosticReport.to_dict
+    reads = []
+
+    def counted(self):
+        if self is quality:
+            reads.append(1)
+        return deserialize(self)
+
+    monkeypatch.setattr(QuoteDiagnosticReport, "to_dict", counted)
+    actual = diagnose_parity(quality, spread_floor=0.005).to_dict()
+    assert actual == expected  # includes ordinary, future-observation and expired checks
+    assert len(reads) <= 2  # one metadata snapshot and one quotes table
+    pairs = QuoteDiagnosticReport.from_dict(actual).table("pairs")
+    assert pairs.status.eq("pass" if time_shift == 0 else "not_checked").all()
+    if time_shift:
+        assert pairs.reason.eq("ineligible_observation_or_expiry_time").all()

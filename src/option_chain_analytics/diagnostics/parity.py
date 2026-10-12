@@ -47,7 +47,10 @@ def diagnose_parity(
         Pair-level intervals/residuals, refit summaries and an eligibility map.
         Same-quote refits measure internal consistency, not independent validation.
     """
-    if quality.metadata.get("kind") != "quote_quality":
+    # Accessors deserialize the immutable report. Snapshot metadata once so the
+    # strike-pair loop does not repeatedly parse every quote and check table.
+    metadata = quality.metadata
+    if metadata.get("kind") != "quote_quality":
         raise ValueError("quality must be a quote-quality report")
     if not np.isfinite(spread_floor) or spread_floor <= 0:
         raise ValueError("spread_floor must be finite and positive")
@@ -65,7 +68,7 @@ def diagnose_parity(
         raise ValueError("discount anchor conflicts with supplied bounds")
     if not forward_source or not discount_source:
         raise ValueError("forward and discount provenance must be explicit")
-    config = quality.metadata["config"]
+    config = metadata["config"]
     supported = (
         config["payoff"] == "standard_european"
         and config["settlement"] in ("cash", "physical")
@@ -102,12 +105,12 @@ def diagnose_parity(
             ) or not np.isclose(calls.discount.iloc[0], puts.discount.iloc[0], rtol=1e-10, atol=1e-12):
                 reason = "inconsistent_declared_forward_or_discount"
             elif (
-                pd.Timestamp(key[3]) > pd.Timestamp(quality.metadata["requested_time"])
+                pd.Timestamp(key[3]) > pd.Timestamp(metadata["requested_time"])
                 or (
-                    quality.metadata["source_time"] is not None
-                    and pd.Timestamp(key[3]) > pd.Timestamp(quality.metadata["source_time"])
+                    metadata["source_time"] is not None
+                    and pd.Timestamp(key[3]) > pd.Timestamp(metadata["source_time"])
                 )
-                or pd.Timestamp(key[2]) <= pd.Timestamp(quality.metadata["requested_time"])
+                or pd.Timestamp(key[2]) <= pd.Timestamp(metadata["requested_time"])
             ):
                 reason = "ineligible_observation_or_expiry_time"
         record.update(
@@ -232,8 +235,8 @@ def diagnose_parity(
         dict(
             kind="parity",
             config=config,
-            requested_time=quality.metadata["requested_time"],
-            source_time=quality.metadata["source_time"],
+            requested_time=metadata["requested_time"],
+            source_time=metadata["source_time"],
             spread_floor=spread_floor,
             refit=refit,
             discount_anchor=discount_anchor,

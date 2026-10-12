@@ -4,6 +4,12 @@ All notable public changes to OptionChainAnalytics are recorded here.
 
 ## [Unreleased]
 
+### Fixed
+
+- `diagnose_parity` reads immutable report metadata once per invocation, avoiding
+  repeated full-report deserialization for each strike pair on large historical chains.
+  Parity calculations, timestamp eligibility and report contents are unchanged.
+
 ## [5.3.0] - 2026-10-12
 
 ### Added
