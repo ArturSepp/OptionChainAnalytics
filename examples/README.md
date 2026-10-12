@@ -6,6 +6,7 @@ provider access. Vendor data and credentials are never included in the repositor
 | Example | Data required | Network | Result |
 |---|---|---:|---|
 | `first_success.py` | None; generated deterministic panel | No | Reconstructed chain, ATM volatility, and roll selection |
+| `quote_diagnostics.py` | None; generated panel with explicit injected defects | No | Quote quality, parity, source-row exclusions and optional diagnostic figure |
 | `fetch_thetadata_eod.py` | None by default; ThetaData account with `--live` | Optional | ATM volatility and/or 25-delta skew for one expiry |
 | `build_thetadata_eod_cache.py` | Authenticated ThetaData account | Yes | Resumable monthly EOD partitions and one loaded `OptionsDataDFs` |
 | `fetch_thetadata_atm_timeseries.py` | Local ThetaData cache by default; `--live` is optional | No by default | Rolling ATM-volatility or skew plot |

@@ -98,9 +98,10 @@ implementation.
 
 ## Supported examples
 
-OCA keeps six repository examples with explicit data boundaries:
+OCA keeps repository examples with explicit data boundaries:
 
 - deterministic offline construction and one-expiry ThetaData-shaped analytics;
+- [quote-quality, parity and source-row diagnostics](docs/quote_diagnostics.md) with synthetic data;
 - resumable ThetaData EOD cache construction, cache-first ATM/skew plots, and PDF chain reports;
 - standardized local SPX, VIX, BTC, and ETH cache construction.
 
@@ -504,7 +505,7 @@ A copyable software citation is:
   title={option-chain-analytics: Point-in-time option-chain containers, feed normalisation, reconstruction, and queries for quantitative research},
   author={Sepp, Artur},
   year={2026},
-  version={5.2.2},
+  version={5.3.0},
   url={https://github.com/ArturSepp/OptionChainAnalytics}
 }
 ```

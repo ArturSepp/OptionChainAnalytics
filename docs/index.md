@@ -30,6 +30,7 @@ SPY workflows make no request after the local ThetaData cache has been built.
 first_success
 schema
 point_in_time
+quote_diagnostics
 queries
 data_sources
 comparison

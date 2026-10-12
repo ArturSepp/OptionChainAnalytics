@@ -26,12 +26,20 @@ from option_chain_analytics.option_chain import (
 )
 from option_chain_analytics.option_data import FuturesChainTs, OptionsDataDFs
 from option_chain_analytics.reconstruction import create_chain_at_time, create_chain_timeseries
+from option_chain_analytics.diagnostics import (
+    QuoteDiagnosticConfig,
+    QuoteDiagnosticReport,
+    diagnose_quotes,
+    diagnose_parity,
+    reconstruct_with_diagnostics,
+)
 from option_chain_analytics.utils.portfolio_payoff import (
     compute_option_portfolio_dt,
     compute_portfolio_payoff,
 )
 from option_chain_analytics.visuals.chain_report import run_chain_report
 from option_chain_analytics.visuals.slices import plot_slice_open_interest, plot_slice_vols
+from option_chain_analytics.visuals.diagnostics import plot_quote_diagnostics
 
 __all__ = [
     'DataSource',
@@ -39,6 +47,8 @@ __all__ = [
     'FuturesChainTs',
     'NearestStrikeOnGrid',
     'OptionsDataDFs',
+    'QuoteDiagnosticConfig',
+    'QuoteDiagnosticReport',
     'SliceColumn',
     'SlicesChain',
     'StrikeSelection',
@@ -48,6 +58,10 @@ __all__ = [
     'build_thetadata_eod_cache',
     'create_chain_at_time',
     'create_chain_timeseries',
+    'diagnose_quotes',
+    'diagnose_parity',
+    'reconstruct_with_diagnostics',
+    'plot_quote_diagnostics',
     'generate_simulated_options_data',
     'get_contract_execution_price',
     'load_thetadata_eod_options_data',

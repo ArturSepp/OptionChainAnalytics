@@ -58,3 +58,6 @@ pass `time_selection="exact"` when exact feed-time matching is required.
 The deterministic fixture proves the same contract's `ttm` declines across observations. For an
 empirical study, add source-specific tests covering timestamps, duplicate policy, stale quotes,
 timezone conversion, and the publication/arrival time of every exogenous series.
+
+Use [quote diagnostics and provenance](quote_diagnostics.md) to retain the original source-row
+identities and reconcile reconstruction exclusions without changing these selection policies.
