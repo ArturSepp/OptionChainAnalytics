@@ -39,6 +39,12 @@ def create_chain_at_time(
     SlicesChain or None
         Reconstructed expiry slices, or ``None`` when no permitted observation
         exists. The chain's ``value_time`` is the actual selected feed time.
+
+    Notes
+    -----
+    Forward aggregation uses open-interest weights when any nonzero weight is
+    present. If all weights are zero or missing, it uses the unweighted mean of
+    available forward observations, as for entirely missing open interest.
     """
     options_df = options_data.get_time_slice(
         timestamp=value_time,
@@ -54,7 +60,9 @@ def create_chain_at_time(
     underlying_data = {}
     for maturity_id, maturity_df in options_df.groupby(SliceColumn.MATURITY_ID.value):
         open_interest = maturity_df[SliceColumn.OPEN_INTEREST]
-        if open_interest.notna().any():
+        # QIS returns zero for all-zero weights; zero is not a usable forward.
+        # Apply the existing missing-weight fallback to zero/missing weights too.
+        if not open_interest.fillna(0.0).eq(0.0).all():
             forward = np_nonan_weighted_avg(
                 a=maturity_df[SliceColumn.FORWARD_PRICE.value],
                 weights=open_interest,

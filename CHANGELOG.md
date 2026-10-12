@@ -6,6 +6,9 @@ All notable public changes to OptionChainAnalytics are recorded here.
 
 ### Fixed
 
+- `create_chain_at_time` uses its unweighted forward fallback when an expiry's
+  open interest is entirely zero or missing, instead of reconstructing a zero forward.
+  Weighted aggregation with nonzero weights and observation-time selection are unchanged.
 - `diagnose_parity` reads immutable report metadata once per invocation, avoiding
   repeated full-report deserialization for each strike pair on large historical chains.
   Parity calculations, timestamp eligibility and report contents are unchanged.

@@ -1,11 +1,20 @@
+import numpy as np
 import pandas as pd
+import pytest
 
 from option_chain_analytics import OptionsDataDFs, create_chain_at_time, create_chain_timeseries
 from option_chain_analytics.data.deribit import load_local_deribit_contract_ts_data
 from option_chain_analytics.option_chain import SliceColumn, UnderlyingColumn
 
 
-def test_chain_creation_uses_weighted_forward_with_current_qis() -> None:
+@pytest.mark.parametrize('weights,forwards,expected', [
+    ([1.0, 3.0], [100.0, 110.0], 107.5),
+    ([0.0, 0.0], [100.0, 110.0], 105.0),
+    ([0.0, np.nan], [100.0, 110.0], 105.0),
+    ([np.nan, np.nan], [100.0, 110.0], 105.0),
+    ([0.0, 0.0], [100.0, np.nan], 100.0),
+])
+def test_chain_creation_uses_weighted_forward_with_current_qis(weights, forwards, expected) -> None:
     value_time = pd.Timestamp('2024-01-02 08:00:00', tz='UTC')
     expiry = pd.Timestamp('2024-01-26 08:00:00', tz='UTC')
     chain_ts = pd.DataFrame(
@@ -17,15 +26,18 @@ def test_chain_creation_uses_weighted_forward_with_current_qis() -> None:
             SliceColumn.TTM.value: [24.0 / 365.0, 24.0 / 365.0],
             SliceColumn.OPTION_TYPE.value: ['C', 'P'],
             SliceColumn.STRIKE.value: [100.0, 100.0],
-            SliceColumn.FORWARD_PRICE.value: [100.0, 110.0],
-            SliceColumn.OPEN_INTEREST.value: [1.0, 3.0],
+            SliceColumn.FORWARD_PRICE.value: forwards,
+            SliceColumn.OPEN_INTEREST.value: weights,
         }
     )
     options = OptionsDataDFs(chain_ts=chain_ts, spot_data=pd.DataFrame(), ticker='BTC')
 
+    original = chain_ts.copy(deep=True)
     chain = create_chain_at_time(options_data=options, value_time=value_time)
 
-    assert chain.undelying_df.loc['26JAN2024', UnderlyingColumn.FORWARD_PRICE] == 107.5
+    assert chain.undelying_df.loc['26JAN2024', UnderlyingColumn.FORWARD_PRICE] == expected
+    assert chain.expiry_slices['26JAN2024'].get_future_price() == expected
+    pd.testing.assert_frame_equal(chain_ts, original)
 
 
 def test_deribit_loader_adds_forward_price_for_chain_creation(monkeypatch) -> None:
@@ -44,7 +56,8 @@ def test_deribit_loader_adds_forward_price_for_chain_creation(monkeypatch) -> No
     assert loaded['chain_ts'][SliceColumn.FORWARD_PRICE.value].iloc[0] == 100.0
 
 
-def test_chain_creation_can_select_only_the_previous_observation() -> None:
+@pytest.mark.parametrize('open_interest', [1.0, 0.0])
+def test_chain_creation_can_select_only_the_previous_observation(open_interest) -> None:
     first_time = pd.Timestamp('2024-01-02 08:00:00', tz='UTC')
     second_time = pd.Timestamp('2024-01-03 08:00:00', tz='UTC')
     requested_time = pd.Timestamp('2024-01-02 16:00:00', tz='UTC')
@@ -64,7 +77,7 @@ def test_chain_creation_can_select_only_the_previous_observation() -> None:
             SliceColumn.OPTION_TYPE.value: ['C', 'P', 'C', 'P'],
             SliceColumn.STRIKE.value: [100.0] * 4,
             SliceColumn.FORWARD_PRICE.value: [100.0, 100.0, 101.0, 101.0],
-            SliceColumn.OPEN_INTEREST.value: [1.0] * 4,
+            SliceColumn.OPEN_INTEREST.value: [open_interest] * 4,
         }
     )
     options = OptionsDataDFs(chain_ts=chain_ts, spot_data=pd.DataFrame(), ticker='BTC')
@@ -91,6 +104,7 @@ def test_chain_creation_can_select_only_the_previous_observation() -> None:
     assert exact is None
     assert previous is not None
     assert previous.value_time == first_time
+    assert previous.expiry_slices['26JAN2024'].get_future_price() == 100.0
     assert previous.options_df[SliceColumn.EXCHANGE_TIME.value].eq(first_time).all()
     assert before_history is None
     assert scheduled[requested_time].value_time == first_time
