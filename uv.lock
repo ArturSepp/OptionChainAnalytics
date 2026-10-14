@@ -59,7 +59,7 @@ wheels = [
 
 [[package]]
 name = "bbg-fetch"
-version = "3.2.0"
+version = "3.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -68,9 +68,9 @@ dependencies = [
     { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "pandas", version = "3.0.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b2/5e/943be03b35fd5b1f6a139a9ef5d01828fde5484982bd739faea16a5fc77d/bbg_fetch-3.2.0.tar.gz", hash = "sha256:d9f203a42b23e73456679c32adf31a5493b0d3a17f7a19449d640e84c817e9f5", size = 54628, upload-time = "2026-09-08T05:36:15.36Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/36/f5/5efbe4c990a0ed83904a091bf558b022d99b08c5d639194e858be1b855b2/bbg_fetch-3.2.1.tar.gz", hash = "sha256:bc24dd17ad43f6d7099b13554f28860a72cc964e7f80b857dba4d0096f06133b", size = 55398, upload-time = "2026-10-07T09:03:44.429Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/40/07/18946a00fcfc91307ef4a4eac269309b5e3c1baea11af004ee6772562b7a/bbg_fetch-3.2.0-py3-none-any.whl", hash = "sha256:7a77b8c96afe1267ef4bfcd58c5b96f5f55121357a5b506651744eb8a7f309a0", size = 34010, upload-time = "2026-09-08T05:36:13.924Z" },
+    { url = "https://files.pythonhosted.org/packages/60/a9/c6e02b5d10ced3bbfbe4436630127299a9d5213fa19f88bb1db9234659e7/bbg_fetch-3.2.1-py3-none-any.whl", hash = "sha256:784a61b97b7e25f2002efb8b26ae5298a93d5549c5539e9a55d115326d9869d2", size = 34011, upload-time = "2026-10-07T09:03:43.234Z" },
 ]
 
 [[package]]
@@ -2349,7 +2349,7 @@ wheels = [
 
 [[package]]
 name = "qis"
-version = "5.33.2"
+version = "5.33.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "matplotlib", version = "3.10.9", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -2368,9 +2368,9 @@ dependencies = [
     { name = "seaborn" },
     { name = "statsmodels" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/13/84/867a0de9e24ce366cf38b941776ec5d50e46680bcdb73989a47f337f749f/qis-5.33.2.tar.gz", hash = "sha256:42ed2595e9f66b8f2464fd4a349d43f72d7db8082bc907cfecc3c53f132f4a42", size = 1141829, upload-time = "2026-10-01T15:32:22.424Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d9/01/1ac54b1ae12aaeda787025c0337aa138d07ce91419be2b56d34f95cde8ca/qis-5.33.4.tar.gz", hash = "sha256:99186d8d2674e2f89fee3a31002dfa710a276826a3babc5b47875d601d0c1015", size = 1174315, upload-time = "2026-10-07T08:46:08.021Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/00/8e/78b7c31782d8be8a53024d2b666200e76ca682a860edaccea14234494db9/qis-5.33.2-py3-none-any.whl", hash = "sha256:24ae5a29cc73f3aa7b926f40a175c5603fad0647d9d95d9686f08294177b9733", size = 1407067, upload-time = "2026-10-01T15:32:20.278Z" },
+    { url = "https://files.pythonhosted.org/packages/c7/a1/ecdaa2b69c7e23507f7010dfcf8a43facc4b71504c42f900bf918327dfe3/qis-5.33.4-py3-none-any.whl", hash = "sha256:bfed854bb98c5bb5e2f7400685845bcc8027a7f512120ebb43b27370120ff4eb", size = 1445513, upload-time = "2026-10-07T08:46:05.866Z" },
 ]
 
 [[package]]
@@ -3043,7 +3043,7 @@ wheels = [
 
 [[package]]
 name = "vanilla-option-pricers"
-version = "2.2.0"
+version = "2.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numba" },
@@ -3051,9 +3051,9 @@ dependencies = [
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
     { name = "numpy", version = "2.5.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/32/f6/de8c70dc9e6c7cef602adf461ca8d54b36dc4565be4478b5b390b11b9ad9/vanilla_option_pricers-2.2.0.tar.gz", hash = "sha256:17fba01a59c5e1331486d107dd1760e425fe2e24aec86e4cb8a32453be02b179", size = 26769, upload-time = "2026-09-08T05:42:05.488Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f9/62/f018f384913c6c7412c57bf05e916a4684c166cd640388299ed30c70544b/vanilla_option_pricers-2.2.1.tar.gz", hash = "sha256:e0adc5aa81b58a7607d82b981ebc6ed6c38a06fac437693cde5393954fa0c016", size = 29388, upload-time = "2026-10-07T09:04:05.751Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/84/0b/8d41697c8083c4c279ff5fa4d8887339cfe218d0064083018149dc005f99/vanilla_option_pricers-2.2.0-py3-none-any.whl", hash = "sha256:7215048ebf45bd6753836c9d70aea38501aaca302dbfadac8e8aa602fe97aae3", size = 26417, upload-time = "2026-09-08T05:42:04.407Z" },
+    { url = "https://files.pythonhosted.org/packages/a6/ae/c8bfc5a2e3fe279433de586b95938e1d279d9c9338c59278c2f9173b61ba/vanilla_option_pricers-2.2.1-py3-none-any.whl", hash = "sha256:a2b3fb0dbebcbf183bff4e947adfb09c67e87686d52152be1d7735715a988ff5", size = 29709, upload-time = "2026-10-07T09:04:04.54Z" },
 ]
 
 [[package]]
