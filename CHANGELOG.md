@@ -4,8 +4,18 @@ All notable public changes to OptionChainAnalytics are recorded here.
 
 ## [Unreleased]
 
+## [5.3.0] - 2026-10-14
+
 ### Added
 
+- Added `QuoteDiagnosticConfig`, `QuoteDiagnosticReport` and `diagnose_quotes` for
+  immutable quote validity, timing, liquidity and coverage evidence with explicit units.
+- Added `diagnose_parity` for synchronized bid/ask parity intervals, declared-forward
+  residuals and optional existing robust inference with conditioning and rate-anchor evidence.
+- Added `reconstruct_with_diagnostics` to preserve source-row identity and reconcile
+  duplicates and reconstruction exclusions without changing canonical frames or selection defaults.
+- Added `plot_quote_diagnostics`, the offline `examples/quote_diagnostics.py` workflow
+  and a quote-diagnostics guide. Diagnostics do not automatically filter or repair observations.
 - Expanded the quote-diagnostics guide with discounted bounds, timestamp availability,
   serialized SVM handoff, unavailable-evidence semantics and empirical quote-error limits.
 
@@ -24,19 +34,6 @@ All notable public changes to OptionChainAnalytics are recorded here.
 - `diagnose_parity` reads immutable report metadata once per invocation, avoiding
   repeated full-report deserialization for each strike pair on large historical chains.
   Parity calculations, timestamp eligibility and report contents are unchanged.
-
-## [5.3.0] - 2026-10-12
-
-### Added
-
-- Added `QuoteDiagnosticConfig`, `QuoteDiagnosticReport` and `diagnose_quotes` for
-  immutable quote validity, timing, liquidity and coverage evidence with explicit units.
-- Added `diagnose_parity` for synchronized bid/ask parity intervals, declared-forward
-  residuals and optional existing robust inference with conditioning and rate-anchor evidence.
-- Added `reconstruct_with_diagnostics` to preserve source-row identity and reconcile
-  duplicates and reconstruction exclusions without changing canonical frames or selection defaults.
-- Added `plot_quote_diagnostics`, the offline `examples/quote_diagnostics.py` workflow
-  and a quote-diagnostics guide. Diagnostics do not automatically filter or repair observations.
 
 ## [5.2.2] - 2026-10-07
 
