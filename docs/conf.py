@@ -22,6 +22,7 @@ release = tomllib.loads(
 version = ".".join(release.split(".")[:2])
 
 extensions = ['myst_parser']
+myst_enable_extensions = ['dollarmath']
 source_suffix = {'.rst': 'restructuredtext', '.md': 'markdown'}
 exclude_patterns = ['_build']
 # _templates/base.html titles pages other than the homepage "<page title> - option-chain-analytics".

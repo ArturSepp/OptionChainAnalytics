@@ -120,6 +120,24 @@ def test_price_bounds_and_exactly_once_multiplier_ignore_contract_size():
     ]
 
 
+@pytest.mark.parametrize("optiontype,strike", [("C", 80.), ("P", 120.)])
+@pytest.mark.parametrize("discount", [.9, 1.05])
+@pytest.mark.parametrize("offset", [0., -.1])
+def test_lower_price_bound_discounts_intrinsic_for_both_rate_signs(
+        optiontype, strike, discount, offset):
+    _, frame, time, config = fixture()
+    frame = frame.iloc[[0]].copy()
+    payoff = max(100. - strike, 0.) if optiontype == "C" else max(strike - 100., 0.)
+    price = discount * payoff + offset
+    frame.loc[:, ["forward_price", "strike", "discount", "optiontype", "bid_price", "ask_price"]] = [
+        100., strike, discount, optiontype, price, price,
+    ]
+    report = diagnose_quotes(frame, config=config, requested_time=time, source_time=time)
+    bound = report.table("checks").query('check == "price_bounds"').iloc[0]
+    assert bound.status == ("pass" if offset == 0 else "fail")
+    assert bound.value == pytest.approx(offset, abs=1e-12)
+
+
 def test_roundtrip_is_deterministic_and_independent_and_chain_scope_is_honest():
     data, frame, time, config = fixture()
     report = diagnose_quotes(frame, config=config, requested_time=time, source_time=time)

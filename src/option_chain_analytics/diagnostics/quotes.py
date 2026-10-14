@@ -271,15 +271,15 @@ def diagnose_quotes(
         if not supported or config.price_unit != "USD per unit":
             check("price_bounds", reason="payoff_settlement_or_units_not_verified", status="not_applicable")
         elif inputs_valid and row["valid_price"] and row["optiontype"] in ("C", "P"):
-            # VIP has no exported price-bound helper. Its zero-volatility price gives
-            # the lower bound; the upper bound is the discounted payoff cap.
-            lower = bsm.compute_bsm_vanilla_price(
+            # VIP has no exported price-bound helper. Its intrinsic branch returns
+            # an undiscounted payoff, so request D=1 and apply the quote discount once.
+            lower = row["discount"] * bsm.compute_bsm_vanilla_price(
                 forward=row["forward_price"],
                 strike=row["strike"],
                 ttm=row["ttm"],
                 vol=0.0,
                 optiontype=row["optiontype"],
-                discfactor=row["discount"],
+                discfactor=1.0,
             )
             upper = row["discount"] * (row["forward_price"] if row["optiontype"] == "C" else row["strike"])
             margin = min(ask - lower, upper - bid)

@@ -4,8 +4,16 @@ All notable public changes to OptionChainAnalytics are recorded here.
 
 ## [Unreleased]
 
+### Added
+
+- Expanded the quote-diagnostics guide with discounted bounds, timestamp availability,
+  serialized SVM handoff, unavailable-evidence semantics and empirical quote-error limits.
+
 ### Fixed
 
+- `diagnose_quotes` discounts its zero-volatility intrinsic lower bound exactly once.
+  This prevents valid discounted premiums being rejected at positive rates and
+  below-bound premiums being accepted when the discount factor exceeds one.
 - CBOE cache metadata now labels unchanged premiums as `index_points`, with USD multiplier 1
   and contract size 100 kept separate. The reader accepts the known schema-3 `usd_per_contract`
   mislabel while preserving policy and fingerprint validation. Documented expiry clocks now

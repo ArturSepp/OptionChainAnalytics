@@ -32,6 +32,12 @@ source times are distinct, timezone-aware instants. Missing exchange times remai
 naive row timestamps are not silently assigned a timezone. A snapshot later than its request
 is rejected. Discounts greater than one are valid, including under negative rates.
 
+An exchange/provider timestamp identifies the clock supplied by that feed. It does not
+establish when a historical record became available to a collector. Keep receive times
+unknown when the archive does not contain them, and state which clock underlies a study's
+point-in-time claim. A common forward/discount policy must be validated for the declared
+payoff and frozen before downstream fitting; relabelling units does not validate that policy.
+
 Optional age and relative-spread thresholds are fixed caller inputs. No threshold is estimated
 from future observations. `year_basis` and `delta_convention` remain unknown unless supplied.
 Delta ranges describe the observed column under that recorded convention.
@@ -51,8 +57,22 @@ pre-reconstruction counts unavailable. The report includes:
 Statuses are `pass`, `fail`, `not_checked` and `not_applicable`. Missing IV does not erase valid
 price evidence. Zero bids and locked markets have their own counts. Bounds test whether the
 quote interval overlaps the admissible standard-payoff range; they are not a demand that every
-bid equal an attainable model value. Numerical lower bounds use the zero-volatility price from
-[VanillaOptionPricers](https://github.com/ArturSepp/VanillaOptionPricers).
+bid equal an attainable model value. For forward $F$, strike $K$ and positive discount $D$,
+the admissible call and put ranges are
+
+$$
+[D\max(F-K,0),\;DF],\qquad [D\max(K-F,0),\;DK].
+$$
+
+For lower and upper bounds $L,U$, the reported margin is
+$\min(\mathrm{ask}-L,\;U-\mathrm{bid})$; it passes when at least
+`-config.price_tolerance`, in the declared price units.
+Numerical lower bounds use the zero-volatility intrinsic payoff from
+[VanillaOptionPricers](https://github.com/ArturSepp/VanillaOptionPricers) at unit discount,
+then multiply by $D$ exactly once. This also applies when $D>1$. A locked quote at the
+discounted intrinsic bound passes; a locked quote below it by more than the tolerance fails.
+The spread floor used
+for residual scaling does not relax these bounds or make an inadmissible price valid.
 
 ## Parity and optional inference
 
@@ -93,6 +113,34 @@ revised datasets. Canonical frames and caches acquire no diagnostic columns.
 
 `QuoteDiagnosticReport.to_dict()` produces strict JSON; `from_dict()` restores it. Non-finite
 metrics become null alongside status/reason. Tables and metadata access return independent copies.
+
+## Handoff to SVM research diagnostics
+
+Preserve the complete quote-quality report, its parity report, configuration, source and
+requested times, and the source-row IDs of the selected calibration quotes. The optional
+SVM adapter's selection map connects those IDs to the new `OptionChain`; default row
+ordinals after filtering are not substitutes for source identities.
+
+SVM's repository-only
+[combined research report](https://github.com/ArturSepp/StochVolModels/blob/main/examples/calibration/combined_research_diagnostics.py)
+accepts serialized OCA reports without importing OCA. It checks selected prices, IVs,
+strikes, option types, maturities, forwards, discounts, units and timestamps before joining.
+It reports quote quality, parity, observed fit, strike support and wing sensitivity as
+separate facets. OCA remains the owner of observation diagnostics and never imports SVM.
+
+In that consumer, unchecked age or missing source time makes quote quality unavailable;
+an observed quality failure remains a failure. Missing or unchecked selected parity pairs
+stay unavailable. Such upstream evidence blocks a research sensitivity classification,
+while observed-fit residuals and their exclusions remain visible. Neither passing parity
+nor a low fitting error validates extrapolated wings.
+
+The public diagnostics do not estimate an empirical quote-error distribution. For a study
+using temporal residuals, retain the calibration/validation split, the market adjustment,
+the forward/discount policy and the price/payoff mapping as separate frozen evidence.
+A temporal change is not automatically an independent quote-level error. Tail dependence,
+spread floors and price-bound admissibility need their own evaluation before a noise law
+can drive SVM refits. The synthetic Gaussian-IV cutoff contract in SVM does not establish
+eligibility for an empirical OCA surface.
 
 ## Offline example and public entry points
 
