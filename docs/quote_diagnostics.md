@@ -2,13 +2,13 @@
 myst:
   html_meta:
     description: >-
-      Diagnose observed option quote quality, synchronized put-call parity and
-      point-in-time source-row provenance with immutable OCA reports.
+      Diagnose option quote quality and exact-time parity, freeze retrospective event
+      freshness policies, and attribute missing or recoverable parity evidence for SVM research.
 ---
 
 # Quote quality, parity and provenance
 
-*Author: [Artur Sepp](https://github.com/ArturSepp)*
+*Author: [Artur Sepp](https://github.com/ArturSepp) / First recorded: [2026-10-12](https://github.com/ArturSepp/OptionChainAnalytics/commit/e366e90f91ecd03f77d518786f3d089b8a5ddff4)*
 
 Implemented in [option-chain-analytics](https://github.com/ArturSepp/OptionChainAnalytics).
 Software citation: [CITATION.cff](https://github.com/ArturSepp/OptionChainAnalytics/blob/main/CITATION.cff).
@@ -17,6 +17,23 @@ Quote diagnostics record whether observations are usable under declared conventi
 which reconstruction or selection rule retained each source row. They leave observations and
 existing cleaning policies unchanged. OCA owns observed-data evidence; fitted-surface checks
 belong to [StochVolModels](https://github.com/ArturSepp/StochVolModels).
+
+## Choose a diagnostic workflow
+
+| Question | Entry point | Availability and result |
+|---|---|---|
+| Are the observed quotes valid under stated units and clocks? | `diagnose_quotes` | Packaged API; immutable quote/check tables and coverage counts |
+| Do synchronized call/put intervals contain declared parity? | `diagnose_parity` | Packaged API; exact source pairs, residuals and optional inference |
+| Which original rows survived reconstruction? | `reconstruct_with_diagnostics` | Packaged API; chain plus source-selection sidecar |
+| Does selected event timing meet a calibration-frozen research policy? | `fit_event_policy`, `apply_event_policy`, `selected_qualification` | Repository-only [freshness example](https://github.com/ArturSepp/OptionChainAnalytics/blob/main/examples/retrospective_freshness.py); original quality and conditional event quality remain separate |
+| Why is selected parity missing or failing, and can original records resolve it? | `attribute_parity` | Repository-only [attribution example](https://github.com/ArturSepp/OptionChainAnalytics/blob/main/examples/parity_attribution.py); quote, inventory-pair and group evidence |
+
+The packaged diagnostics require OCA 5.3 or later. The research helpers require a
+source checkout containing the linked files; they are not package-root exports or
+installed command-line tools. A private panel's forward policy, noise profiles and
+qualification decisions are study artifacts, not additional normalization defaults.
+For fitted-price, surface and longitudinal interpretation, continue with the
+[SVM workflow](https://github.com/ArturSepp/StochVolModels/blob/main/docs/surface_diagnostics.md#select-a-diagnostic-workflow).
 
 ## Inputs and conventions
 
@@ -61,7 +78,7 @@ bid equal an attainable model value. For forward $F$, strike $K$ and positive di
 the admissible call and put ranges are
 
 $$
-[D\max(F-K,0),\;DF],\qquad [D\max(K-F,0),\;DK].
+[D\max(F-K,0),\quad DF],\qquad [D\max(K-F,0),\quad DK].
 $$
 
 For lower and upper bounds $L,U$, the reported margin is
@@ -144,7 +161,7 @@ eligibility for an empirical OCA surface.
 
 ## Retrospective event freshness and asynchrony
 
-The repository-only `examples/retrospective_freshness.py` assesses provider-event
+The repository-only [freshness example](https://github.com/ArturSepp/OptionChainAnalytics/blob/main/examples/retrospective_freshness.py) assesses provider-event
 cadence using an explicitly frozen research policy. It does not change
 `QuoteDiagnosticConfig`, reconstruction, caches or the exact-time parity rule.
 Provider event age is the elapsed time from the event timestamp to the requested
@@ -182,6 +199,37 @@ selected non-age quote checks with the frozen age, anchor and asynchrony checks.
 The latest observed event is labelled an event anchor; it never substitutes for a
 snapshot receipt timestamp. Original snapshot-age evidence remains unchanged.
 
+The input inventory contains `group_id`, `source_row_id`, `contract`, `requested_time`,
+`expiry`, `event_time`, `strike` and `optiontype`. A group identifies one actual
+expiry at one requested time. Source-row and contract identities must be unique within
+each group, and times must be aware;
+missing event clocks remain unavailable. Supply all original inventory rows when
+estimating the policy, then use the unchanged selected IDs for qualification.
+
+For requested time $t_g$ and provider-event time $t_i$, define event age
+$a_i=t_g-t_i$ in seconds. On a complete group of nonfuture events, youngest-event age
+and cross-quote time range are
+
+$$
+a_{\mathrm{anchor}}=\min_i a_i,
+\qquad r_{\mathrm{events}}=\max_i a_i-\min_i a_i.
+$$
+
+These are event-cadence statistics. Neither is a receipt timestamp or an estimate
+of the time since a bid or ask last changed.
+
+| Output | Evidence retained |
+|---|---|
+| Frozen policy dictionary | Split, calibration denominators, input fingerprint, budget values and policy digest |
+| `apply_event_policy(...).table("rows")` | Every original source row, event age, status and reason |
+| `apply_event_policy(...).table("groups")` | Group anchor age, asynchrony, completeness and status |
+| `selected_qualification(...)` dictionary | `original_quality`, `event_quality`, `exact_parity`, `timing`, reasons and available timing details |
+
+An empty selection returns unavailable qualification. A known failure dominates
+missing evidence; otherwise every required selected check must be supported before
+the corresponding group can pass. These helpers do not modify the original quality
+report, select a different contract or change a downstream gate.
+
 A separately declared SVM research gate can combine this conditional event evidence
 with saved-fit success, the original native input guard and complete passing original
 parity. This is separate from SVM's existing strict gate. A bounded cross-strike time
@@ -203,12 +251,20 @@ remain private local artifacts. No default age policy or automatic warning is in
 
 ## Parity attribution and recovery from original evidence
 
-The repository-only `examples/parity_attribution.py` traces each selected source ID
+The repository-only [attribution example](https://github.com/ArturSepp/OptionChainAnalytics/blob/main/examples/parity_attribution.py) traces each selected source ID
 to its original exact-time call/put evidence and repeats `diagnose_parity` on the
 unchanged complete quality sidecar with `refit=False`. `attribute_parity` returns an
 immutable report with selected-quote, inventory-pair and group-summary tables. It
 requires the original selected IDs, group identity and explicit calibration/validation
 split. Missing selections or contradictory quote/parity identities and clocks are errors.
+
+| Input | Contract |
+|---|---|
+| `quality`, `parity` | Original `QuoteDiagnosticReport` objects or their serialized dictionaries; matching configuration and source/request clocks |
+| `selected_ids` | Original selected source IDs in their retained order, without duplicates |
+| `group_id`, `split_utc` | Explicit group identity and aware cohort boundary; no threshold fitting uses validation |
+| `priority` | Reporting label only; it does not remove other observations or change a decision rule |
+| Optional `context` | Explicit `mapping="inverse_forward_value_D1"` and original source records for the separate forward comparison |
 
 Attribution distinguishes missing identity or clocks, future or expired observations,
 absent opposite legs, opposite legs observed only at different times, ambiguous exact
@@ -225,18 +281,43 @@ reproduced have separate labels. New reports never overwrite the original sideca
 An optional, explicitly declared inverse forward-value/D=1 context can compare a
 checked exact pair with its coherent original provider forward and original coin
 premiums. Source IDs, contract/expiry/strike identities, event clocks, common forward
-and original premium scaling must reproduce the frozen observations. For native coin
-premium q and pair-event forward F, this comparison uses Fq and D=1, with actual-event
-ACT/365 maturity and the original price tolerance. It calls OCA diagnostics without
+and original premium scaling must reproduce the frozen observations. Let $q_t$ be an
+original coin premium, $F_t$ the pair-event provider forward and $F_\star$ the frozen
+common expiry forward. The local comparison uses $F_tq_t$ and $D=1$, with actual-event
+ACT/365 maturity and the original price tolerance. The saved common-coordinate
+premiums $F_\star q_t$ and their original maturity remain unchanged. It calls OCA diagnostics without
 fitting forwards or discounts. Missing or inconsistent original forwards remain
 unavailable. Common-coordinate implied volatilities are not reused at the local forward.
 
-For example, common-forward F=100 and strike K=100 with call 20–22 and put 3–5
-give a parity interval 15–19, which excludes F−K=0. If the original coin premiums
-are 0.20–0.22 and 0.03–0.05 at a coherent original forward of 120, the separate
-local interval is 18–22.8 and contains 120−100=20. The common-forward pair still
+For example, common forward $F_\star=100$ and strike $K=100$ with call 20–22 and put 3–5
+give a parity interval 15–19, which excludes $F_\star-K=0$. If the original coin premiums
+are 0.20–0.22 and 0.03–0.05 at a coherent original forward $F_t=120$, the separate
+local interval is 18–22.8 and contains $F_t-K=20$. The common-forward pair still
 fails. This comparison shows dependence on representation; it does not establish
 market movement, repair the common surface or demonstrate executable arbitrage.
+
+The optional context's `rows` identify `source_row_id`, `contract`, `underlying_index`,
+`mat_id`, `expiry`, `strike`, `optiontype`, `requested_time` and `event_time`. They
+also supply `native_bid`, `native_ask`, `source_forward`, `common_forward` and, when
+known, `common_anchor_time`. Original coin prices multiplied by the common forward
+must reproduce the saved normalized quotes. A missing context row leaves its local
+comparison unavailable; conflicting identities, clocks or premium scaling are errors.
+
+| Report table | Unit of observation and use |
+|---|---|
+| `quotes` | One original selected quote; old/new parity state, counterpart IDs/clocks, attribution, observed gap and recoverability |
+| `pairs` | One exact inventory group, including unmatched single legs; selected-leg count and separate common/local interval results |
+| `summary` | One expiry/snapshot group; original and recomputed selected-parity state, split, priority label, counts and multiple causes |
+
+Inventory pair groups are not all checked call/put pairs. Keep their denominator
+separate from selected quotes and from groups. Selected group status is `fail` if
+any selected pair fails, `pass` only for a nonempty selection whose pairs all pass,
+and `unavailable` otherwise. A failing group can also have missing pairs.
+
+Attribution recovery means recovering previously omitted or incorrectly reported
+evidence at the same frozen observation. SVM's longitudinal observed recovery means
+new clear evidence at a later eligible observation; neither missing data nor elapsed
+time supplies that evidence. The two meanings should not share an unqualified count.
 
 Run the credential-free demonstration from a source checkout:
 
@@ -297,9 +378,11 @@ and selected prices, and adds a complete source-to-calibration selection map.
 - [Schema contract](schema.md) and [point-in-time reconstruction](point_in_time.md).
 - [First success](first_success.md) and [chain queries](queries.md).
 - [SVM surface diagnostics](https://github.com/ArturSepp/StochVolModels/blob/main/docs/surface_diagnostics.md).
+- [SVM longitudinal replay](https://github.com/ArturSepp/StochVolModels/blob/main/docs/surface_diagnostics.md#longitudinal-diagnostic-replay).
 
 ## References
 
 - [OCA parity inference source](https://github.com/ArturSepp/OptionChainAnalytics/blob/main/src/option_chain_analytics/utils/forward_discount.py).
+- [Repository-only event policy source](https://github.com/ArturSepp/OptionChainAnalytics/blob/main/examples/retrospective_freshness.py) and [parity attribution source](https://github.com/ArturSepp/OptionChainAnalytics/blob/main/examples/parity_attribution.py).
 - [VanillaOptionPricers software citation](https://github.com/ArturSepp/VanillaOptionPricers/blob/main/CITATION.cff).
 - [option-chain-analytics software citation](https://github.com/ArturSepp/OptionChainAnalytics/blob/main/CITATION.cff).
