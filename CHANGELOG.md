@@ -4,6 +4,13 @@ All notable public changes to OptionChainAnalytics are recorded here.
 
 ## [Unreleased]
 
+### Added
+
+- Added a repository-only retrospective event-freshness/asynchrony example with
+  calibration-only policy fitting, immutable row/group evidence and selected-source
+  qualification. Original snapshot/receive-time uncertainty and exact-time parity
+  remain explicit; no reconstruction defaults or public package APIs change.
+
 ## [5.3.0] - 2026-10-14
 
 ### Added

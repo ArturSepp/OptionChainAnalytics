@@ -142,6 +142,65 @@ spread floors and price-bound admissibility need their own evaluation before a n
 can drive SVM refits. The synthetic Gaussian-IV cutoff contract in SVM does not establish
 eligibility for an empirical OCA surface.
 
+## Retrospective event freshness and asynchrony
+
+The repository-only `examples/retrospective_freshness.py` assesses provider-event
+cadence using an explicitly frozen research policy. It does not change
+`QuoteDiagnosticConfig`, reconstruction, caches or the exact-time parity rule.
+Provider event age is the elapsed time from the event timestamp to the requested
+analysis time. It is distinct from last quote-update age and collector receipt latency.
+
+`fit_event_policy` accepts calibration inventory only and rejects observations at
+or after the declared split. Inventory identifies each source row, contract, actual
+expiry, requested time and provider event time. Prices, fitted results and model
+selection flags do not determine its timing budgets. The reference policy uses the
+nearest-rank 95th percentile, capped at an explicit 3,600-second research ceiling:
+
+- Quote-event age uses all nonfuture, unexpired calibration inventory rows.
+- Anchor age uses the youngest event in each complete calibration expiry/snapshot group.
+- Cross-quote asynchrony uses each complete group's oldest-to-youngest event-time range.
+
+The quantile and cap are research choices. Their budgets describe the observed
+calibration cadence; held-out coverage does not establish an economically acceptable
+freshness limit. A missing calibration population produces an unavailable budget.
+The policy records its calibration denominators, input fingerprint, split and digest.
+`apply_event_policy` applies the frozen artifact without fitting on validation.
+
+For example, event ages of 10, 10, 30 and 30 seconds have a nearest-rank median of
+10 seconds, a youngest-event age of 10 seconds and a time range of 20 seconds.
+An age exactly equal to its budget passes. Missing or naive event clocks remain
+unavailable, future events fail and expired observations are inapplicable. Known
+timing failures stay visible when other clocks are missing. Every input row remains
+in the immutable row/group report.
+With incomplete clocks, the youngest-event age remains unavailable: an unknown event
+could be newer. A known excessive time range can still fail despite missing clocks.
+
+`selected_qualification` assesses the original selected source IDs without changing
+the selection. It reports original quote quality, retrospective event quality,
+timing and exact-source parity separately. Retrospective event quality combines the
+selected non-age quote checks with the frozen age, anchor and asynchrony checks.
+The latest observed event is labelled an event anchor; it never substitutes for a
+snapshot receipt timestamp. Original snapshot-age evidence remains unchanged.
+
+A separately declared SVM research gate can combine this conditional event evidence
+with saved-fit success, the original native input guard and complete passing original
+parity. This is separate from SVM's existing strict gate. A bounded cross-strike time
+range never synchronizes a call and put with different event times. Missing or failed
+parity continues to block qualification, and zero qualified groups is a valid result.
+Neither gate establishes hidden wing accuracy or verified historical receipt availability.
+
+Run the deterministic, credential-free example from a source checkout:
+
+```console
+python examples/retrospective_freshness.py
+```
+
+For an empirical before/after study, preserve the source panel, original selections,
+saved fits, common-forward policy and calibration/validation split. Freeze the timing
+policy before evaluating validation, retain separate cohort counts and blocking reasons,
+and verify parent hashes before and after execution. Research inputs and generated reports
+remain private local artifacts. No default age policy or automatic warning is installed.
+
 ## Offline example and public entry points
 
 ```python
