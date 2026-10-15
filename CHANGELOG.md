@@ -6,6 +6,10 @@ All notable public changes to OptionChainAnalytics are recorded here.
 
 ### Added
 
+- Added a repository-only parity attribution/recoverability example with immutable
+  selected-source evidence, exact-inventory recomputation and an optional coherent
+  original-forward comparison. Asynchronous legs and pair-local passes cannot qualify
+  a common-forward surface; original records, splits and package defaults are retained.
 - Added a repository-only retrospective event-freshness/asynchrony example with
   calibration-only policy fitting, immutable row/group evidence and selected-source
   qualification. Original snapshot/receive-time uncertainty and exact-time parity

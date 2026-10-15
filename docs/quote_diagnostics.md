@@ -201,6 +201,56 @@ policy before evaluating validation, retain separate cohort counts and blocking 
 and verify parent hashes before and after execution. Research inputs and generated reports
 remain private local artifacts. No default age policy or automatic warning is installed.
 
+## Parity attribution and recovery from original evidence
+
+The repository-only `examples/parity_attribution.py` traces each selected source ID
+to its original exact-time call/put evidence and repeats `diagnose_parity` on the
+unchanged complete quality sidecar with `refit=False`. `attribute_parity` returns an
+immutable report with selected-quote, inventory-pair and group-summary tables. It
+requires the original selected IDs, group identity and explicit calibration/validation
+split. Missing selections or contradictory quote/parity identities and clocks are errors.
+
+Attribution distinguishes missing identity or clocks, future or expired observations,
+absent opposite legs, opposite legs observed only at different times, ambiguous exact
+legs, invalid inputs, passing intervals and common-forward interval failures. The
+counterpart IDs, event clocks and minimum observed nonfuture time gap are retained.
+The gap is descriptive: it never permits nearest-time pairing. Several causes may
+coexist in a group; an empty selection remains unavailable.
+
+A quote is recoverable only when an omitted or incorrectly reported pair passes after
+recomputation from the original exact observations in the original common coordinates.
+Already supported pairs, retained failures and original checked results that cannot be
+reproduced have separate labels. New reports never overwrite the original sidecars.
+
+An optional, explicitly declared inverse forward-value/D=1 context can compare a
+checked exact pair with its coherent original provider forward and original coin
+premiums. Source IDs, contract/expiry/strike identities, event clocks, common forward
+and original premium scaling must reproduce the frozen observations. For native coin
+premium q and pair-event forward F, this comparison uses Fq and D=1, with actual-event
+ACT/365 maturity and the original price tolerance. It calls OCA diagnostics without
+fitting forwards or discounts. Missing or inconsistent original forwards remain
+unavailable. Common-coordinate implied volatilities are not reused at the local forward.
+
+For example, common-forward F=100 and strike K=100 with call 20–22 and put 3–5
+give a parity interval 15–19, which excludes F−K=0. If the original coin premiums
+are 0.20–0.22 and 0.03–0.05 at a coherent original forward of 120, the separate
+local interval is 18–22.8 and contains 120−100=20. The common-forward pair still
+fails. This comparison shows dependence on representation; it does not establish
+market movement, repair the common surface or demonstrate executable arbitrage.
+
+Run the credential-free demonstration from a source checkout:
+
+```console
+python examples/parity_attribution.py
+```
+
+A frozen-panel study should prioritize a previously declared cohort without dropping
+other groups, retain the original source and selected IDs, and report each split
+separately. Replaying qualification may substitute only recomputed common-coordinate
+parity evidence. Pair-local passes cannot transfer into that gate. Preserve parent
+hashes, frozen event-quality policy, saved fits and native guards; receipt availability
+and economically acceptable freshness remain unresolved by this attribution.
+
 ## Offline example and public entry points
 
 ```python
