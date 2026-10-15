@@ -33,7 +33,7 @@ source checkout containing the linked files; they are not package-root exports o
 installed command-line tools. A private panel's forward policy, noise profiles and
 qualification decisions are study artifacts, not additional normalization defaults.
 For fitted-price, surface and longitudinal interpretation, continue with the
-[SVM workflow](https://github.com/ArturSepp/StochVolModels/blob/main/docs/surface_diagnostics.md#select-a-diagnostic-workflow).
+[SVM workflow](https://github.com/ArturSepp/StochVolModels/blob/main/docs/surface_diagnostics.md#user-content-select-a-diagnostic-workflow).
 
 ## Inputs and conventions
 
@@ -378,7 +378,7 @@ and selected prices, and adds a complete source-to-calibration selection map.
 - [Schema contract](schema.md) and [point-in-time reconstruction](point_in_time.md).
 - [First success](first_success.md) and [chain queries](queries.md).
 - [SVM surface diagnostics](https://github.com/ArturSepp/StochVolModels/blob/main/docs/surface_diagnostics.md).
-- [SVM longitudinal replay](https://github.com/ArturSepp/StochVolModels/blob/main/docs/surface_diagnostics.md#longitudinal-diagnostic-replay).
+- [SVM longitudinal replay](https://github.com/ArturSepp/StochVolModels/blob/main/docs/surface_diagnostics.md#user-content-longitudinal-diagnostic-replay).
 
 ## References
 
