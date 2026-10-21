@@ -15,24 +15,48 @@ models, strategy backtests, and proprietary datasets remain separate.
 [![Downloads](https://static.pepy.tech/badge/option-chain-analytics)](https://pepy.tech/project/option-chain-analytics)
 [![Monthly](https://static.pepy.tech/badge/option-chain-analytics/month)](https://pepy.tech/project/option-chain-analytics)
 
+**Documentation:** [optionchainanalytics.readthedocs.io](https://optionchainanalytics.readthedocs.io/en/latest/) ·
+[schema contract](docs/schema.md) · [point-in-time reconstruction](docs/point_in_time.md) ·
+[data-source guide](docs/data_sources.md) · [examples guide](examples/README.md)
+
+---
+
 ## Why option-chain-analytics
 
-Provider feeds disagree on schemas, timestamps, identifiers, units, and available fields.
+Provider feeds disagree on schemas, timestamps, identifiers, units, and available fields, and a
+scheduled research path that reads them directly can silently select future data. OCA normalises
+those feeds into one long-form `OptionsDataDFs` panel, then reconstructs an auditable
+`SlicesChain` at an exact observation time or the latest explicitly requested prior observation.
 
 ### Key differentiators
 
-OCA normalises those feeds into one long-form `OptionsDataDFs` panel, then reconstructs an auditable
-`SlicesChain` at an exact observation time or the latest explicitly requested prior observation.
-That point-in-time contract prevents a scheduled research path from silently selecting future
-data.
+- **One schema for every feed.** `SliceColumn` defines the common option-feed schema — source
+  time, contract, forward, discount factor, strike, expiry, quote, implied volatility, Greeks,
+  volume, and open interest — and every adapter (simulated, CBOE, Deribit/Tardis, ThetaData,
+  Bloomberg) lands on it; see the [schema contract](docs/schema.md).
+- **Point-in-time by contract.** Observation and expiry timestamps are timezone-aware; exact
+  lookup is the reconstruction default, and scheduled studies can explicitly select the latest
+  previous observation but never a later one; see [point-in-time reconstruction](docs/point_in_time.md).
+- **Stated units.** Volatilities are decimals (`0.20` means 20%), time to maturity is in years,
+  and each adapter must preserve and document its price/multiplier convention.
+- **Analytics delegated, not duplicated.** Every bid, mark, and ask implied volatility and every
+  mark Greek is computed by `vanilla-option-pricers`; the call-put parity utility under
+  `option_chain_analytics.utils` has no provider or optional-solver dependency.
+- **A credential-free path.** The deterministic simulated-data path exercises the same containers
+  and queries as the optional empirical adapters.
 
-## When to use it — and when not
+### When to use it — and when not
 
-The credential-free simulated-data path exercises the same containers and queries as the
-optional empirical adapters.
+Use `option-chain-analytics` to normalise option feeds into one panel, to reconstruct a chain at
+an exact historical observation time, to query one expiry for ATM, delta-strike, volatility,
+open-interest and execution-price values, to run quote-quality and parity diagnostics, and to
+build resumable local caches for repeated empirical studies.
 
 OCA is the data-container layer: provider credentials and data rights, stochastic-volatility
-models, strategy backtests, and proprietary datasets remain separate.
+models (see [`stochvolmodels`](https://github.com/ArturSepp/StochVolModels)), strategy
+backtests, and proprietary datasets remain separate. Vanilla pricing is
+[`vanilla-option-pricers`](https://github.com/ArturSepp/VanillaOptionPricers); portfolio
+analytics and reporting are [`qis`](https://github.com/ArturSepp/QuantInvestStrats).
 
 ## Installation
 
@@ -42,14 +66,6 @@ Install the published package:
 
 ```bash
 pip install option-chain-analytics
-```
-
-For development from a clone, use the locked test group:
-
-```bash
-git clone https://github.com/ArturSepp/OptionChainAnalytics.git
-cd OptionChainAnalytics
-uv sync --locked --group test
 ```
 
 Provider-specific integrations are optional:
@@ -63,21 +79,84 @@ Provider-specific integrations are optional:
 | `docs`, `all` | Documentation, or every optional integration |
 
 For example, `pip install "option-chain-analytics[cboe]"` installs the CBOE file dependency without
-installing unrelated network providers.
+installing unrelated network providers. Contributor test and lint tools live in the locked `test`
+and `lint` dependency groups rather than a published `dev` extra; see [Testing](#testing).
 
-Contributor test and lint tools live in the locked `test` and `lint` dependency groups rather than
-a published `dev` extra.
+Empirical datasets are not distributed. `OCA_DATA_PATH` holds raw provider archives,
+`OCA_CACHE_PATH` holds normalised reusable chains, and `OCA_OUTPUT_PATH` holds generated
+reports; their source-checkout defaults are the ignored `data/`, `resources/`, and `outputs/`
+directories. The [data catalogue](docs/data_sources.md#canonical-data-catalogue-and-storage)
+defines every supported provider directory, cache filename, and loader.
 
-<a id="five-minute-quickstart-no-data-or-credentials"></a>
+## Table of contents
+
+1. [Why option-chain-analytics](#why-option-chain-analytics)
+2. [Installation](#installation)
+3. [Statement of need](#statement-of-need)
+4. [Overview](#overview)
+5. [Five-minute quickstart](#five-minute-quickstart)
+6. [Examples](#examples)
+7. [Testing](#testing)
+8. [Changelog](#changelog)
+9. [Feedback & contributing](#feedback-contributing)
+10. [Citation](#citation)
+11. [Ecosystem](#ecosystem)
+12. [License](#license)
+13. [Disclaimer](#disclaimer)
+
+## Statement of need
+
+Empirical option research needs a public, auditable input layer: a chain reconstructed at a
+stated observation time from a stated provider record, with stated units and no look-ahead, so
+that a replication can start from the same object the study used. OCA provides that layer.
+Strategy logic and the QF-paper backtests remain in SigmaStrats, and a public example is not
+expected to reproduce results computed from a private production dataset exactly. Dataset
+licences and access terms are separate from the software licence. No research paper is
+implemented in this package; OCA is upstream of `stochvolmodels`, whose paper replications
+consume OCA chains through its optional research workflow.
+
+## Overview
+
+The installable package lives under `src/option_chain_analytics/`; repository-only scripts live in
+`examples/`. Provider adapters own feed-specific choices such as report alignment, rate symbols,
+settlement timestamps, product scope, and admissible bounds; reusable numerical kernels live
+separately under `option_chain_analytics.utils`. Component development diagnostics live beside
+their implementation in `src/option_chain_analytics/**/run_local/*_run.py`, expose `Locals` and
+`run_local(local=...)`, and are excluded from distributions (the `run_local` folders use implicit
+namespace-package support and contain no `__init__.py`). Raw datasets, normalised caches, agent
+reports, and generated outputs live in ignored `data/`, `resources/`, `agents/`, and `outputs/`
+directories.
+
+Data model:
+
+- `OptionsDataDFs` holds an option-observation panel (`chain_ts`) plus an aligned spot-price frame.
+- `SlicesChain` reconstructs all available expiries at one exact observation time.
+- `ExpirySlice` provides call/put, ATM, delta-strike, volatility, open-interest, and execution-price
+  queries for one expiry.
+- `SliceColumn` defines the common option-feed schema, including source time, contract, forward,
+  discount factor, strike, expiry, quote, implied volatility, Greeks, volume, and open interest.
+
+### Analytics at a glance
+
+| Area | What the package computes |
+|---|---|
+| Normalisation | Provider feeds (deterministic simulator, local CBOE fitted-chain files, Deribit/Tardis crypto histories, ThetaData national EOD reports, Bloomberg through `bbg-fetch`) → one long-form `OptionsDataDFs` panel on the `SliceColumn` schema; the CBOE mapper infers bid/ask implied volatilities from source bid/ask prices with the contemporaneous forward, discount factor and time to maturity |
+| Reconstruction | `create_chain_at_time` → `SlicesChain` at an exact observation time, or the latest explicitly requested prior observation, never a later one; every provider report retains its actual timestamp |
+| Queries | `ExpirySlice` call/put, ATM strike and volatility, delta-strike, volatility, open-interest and execution-price queries; weekly roll maturity selection; see [queries](docs/queries.md) |
+| Diagnostics | Quote-quality, parity and source-row diagnostics on synthetic or empirical data, exact-pair parity attribution and recovery from original records; see [quote diagnostics](docs/quote_diagnostics.md) |
+| Caches | Normalised Parquet caches per underlying (`build_local_cboe_options_cache`, `build_thetadata_eod_cache` / `load_thetadata_eod_cache` with resumable monthly partitions, schema and source-file fingerprints, stale-cache rejection); standardized local SPX, VIX, BTC and ETH cache construction |
+| Reports | Cache-first ATM/skew time-series plots and multi-expiry PDF chain reports (`run_chain_report`) |
 
 ## Five-minute quickstart
 
 The authoritative offline repository example constructs a deterministic Black-Scholes-Merton
 option panel, reconstructs a historical chain, queries its front-expiry ATM strike and volatility,
 and selects a weekly roll maturity. The `examples/` directory is not included in the wheel, so run
-this from the source clone created above:
+this from a source clone:
 
 ```bash
+git clone https://github.com/ArturSepp/OptionChainAnalytics.git
+cd OptionChainAnalytics
 python examples/first_success.py
 ```
 
@@ -96,45 +175,11 @@ See [`examples/first_success.py`](examples/first_success.py) for the executable 
 documentation includes that file directly, so the tutorial cannot drift into a second
 implementation.
 
-## Supported examples
+## Examples
 
-OCA keeps repository examples with explicit data boundaries:
+### Highlighted examples
 
-- deterministic offline construction and one-expiry ThetaData-shaped analytics;
-- [quote-quality, parity and source-row diagnostics](docs/quote_diagnostics.md) with synthetic data;
-- resumable ThetaData EOD cache construction, cache-first ATM/skew plots, and PDF chain reports;
-- standardized local SPX, VIX, BTC, and ETH cache construction.
-
-The [examples guide](examples/README.md) lists every script, its required data, whether it makes a
-network request, and its output. Removed research prototypes are not retained as runnable examples.
-
-## Data model
-
-- `OptionsDataDFs` holds an option-observation panel (`chain_ts`) plus an aligned spot-price frame.
-- `SlicesChain` reconstructs all available expiries at one exact observation time.
-- `ExpirySlice` provides call/put, ATM, delta-strike, volatility, open-interest, and execution-price
-  queries for one expiry.
-- `SliceColumn` defines the common option-feed schema, including source time, contract, forward,
-  discount factor, strike, expiry, quote, implied volatility, Greeks, volume, and open interest.
-
-Observation and expiry timestamps are timezone-aware. Exact lookup is the reconstruction default;
-scheduled studies can explicitly select the latest previous observation, but never a later one.
-Volatilities are decimals (`0.20` means 20%), time to maturity is in years, and each adapter must
-preserve and document its price/multiplier convention.
-
-Provider adapters own feed-specific choices such as report alignment, rate symbols, settlement
-timestamps, product scope, and admissible bounds. Reusable numerical kernels live separately under
-`option_chain_analytics.utils`; the call-put parity utility has no provider or optional-solver
-dependency. Black-Scholes analytics remain delegated to `vanilla-option-pricers`.
-
-## Empirical feeds
-
-Local adapters cover Deribit/Tardis crypto histories and SPX/VIX CBOE fitted-chain files. These
-datasets are not distributed. `OCA_DATA_PATH` holds raw provider archives, `OCA_CACHE_PATH` holds
-normalised reusable chains, and `OCA_OUTPUT_PATH` holds generated reports. Their source-checkout
-defaults are the ignored `data/`, `resources/`, and `outputs/` directories. The
-[data catalogue](docs/data_sources.md#canonical-data-catalogue-and-storage) defines every supported
-provider directory, cache filename, and loader. CBOE files can be mapped with:
+**Local CBOE fitted-chain files** (the `cboe` extra):
 
 ```python
 from option_chain_analytics import OptionsDataDFs
@@ -149,76 +194,23 @@ options_data = OptionsDataDFs(
 )
 ```
 
-The CBOE mapper always infers bid/ask implied volatilities from the source bid/ask prices using
-the contemporaneous forward, discount factor, and time to maturity. This keeps every CBOE-backed
-`OptionsDataDFs` instance on the same complete schema.
-
-For repeated empirical studies, build one normalised Parquet cache per underlying after installing
-the `cboe` extra:
-
-```python
-from option_chain_analytics.data.cboe import build_local_cboe_options_cache
-
-build_local_cboe_options_cache(ticker='SPX')
-build_local_cboe_options_cache(ticker='VIX')
-```
-
-This creates ignored `resources/cboe_options/spx_options_oca.parquet` and
-`resources/cboe_options/vix_options_oca.parquet` files by default. The normal loader uses a valid
-cache automatically and still accepts `start`/`end` filters. OCA embeds its cache schema and
-source-file fingerprint in each Parquet file and rejects stale caches. Use `overwrite=True` to
-rebuild deliberately.
-
-CBOE data supplies implied forwards but no independent spot series. Pass `spot_data`, or use
+For repeated empirical studies, build one normalised Parquet cache per underlying with
+`build_local_cboe_options_cache(ticker='SPX')`; the normal loader uses a valid cache
+automatically and still accepts `start`/`end` filters, and OCA rejects stale caches. CBOE data
+supplies implied forwards but no independent spot series: pass `spot_data`, or use
 `is_use_front_forward_as_spot=True` only for visualisation; a forward proxy is not a valid spot
 return series for backtesting.
 
-### ThetaData EOD workflow
-
-ThetaData national EOD reports provide historical US equity and ETF option quotes. OCA converts
-them to the same `OptionsDataDFs` schema used by the local CBOE and Tardis adapters. Index options
-with product-specific or AM settlement conventions are deliberately outside this adapter.
-
-#### 1. Install and authenticate
-
-Install the optional official client integration:
-
-```bash
-pip install "option-chain-analytics[thetadata]"
-```
-
-The official client reads `THETADATA_API_KEY` or its supported credentials file. For example, a
-PowerShell session can keep the key in process memory without writing it into the repository:
-
-```powershell
-$thetaKey = Read-Host "ThetaData API key" -AsSecureString
-$env:THETADATA_API_KEY = [System.Net.NetworkCredential]::new('', $thetaKey).Password
-```
-
-Credentials and raw provider responses are never written to OCA's normalised cache.
-
-#### 2. Build or resume a local history
-
-The supported builder requests one month at a time and checkpoints each completed partition. An
-interrupted request can therefore be rerun safely; compatible existing months are skipped. The
-default end date is yesterday, which is suitable for delayed-data accounts:
-
-```bash
-python examples/build_thetadata_eod_cache.py \
-    --ticker NVDA \
-    --start-date 2023-06-01
-```
-
-By default this stores normalised files under
-`resources/thetadata_options/nvda/{options,spot}/YYYY-MM.parquet`. Set `OCA_CACHE_PATH` or pass
-`--output-dir` to choose another private cache root. The default request keeps expiries from 0 to
-60 calendar DTE and 20 strikes around spot; pass `--all-strikes` only when the larger download is
-actually required.
-
-The same workflow is available through the package API:
+**ThetaData EOD cache, reconstruction and report** (the `thetadata` extra; the official client
+reads `THETADATA_API_KEY`, and credentials and raw provider responses are never written to OCA's
+normalised cache):
 
 ```python
-from option_chain_analytics import build_thetadata_eod_cache, load_thetadata_eod_cache
+import pandas as pd
+
+from option_chain_analytics import (
+    build_thetadata_eod_cache, create_chain_at_time, load_thetadata_eod_cache,
+)
 
 cache_root = build_thetadata_eod_cache(
     ticker='NVDA',
@@ -227,232 +219,66 @@ cache_root = build_thetadata_eod_cache(
     max_dte=60,
     strike_range=20,
 )
-options_data = load_thetadata_eod_cache(cache_root)
+nvda_july = load_thetadata_eod_cache(cache_root, start_date='2026-07-01', end_date='2026-07-31')
 
-print(options_data.ticker)
-print(len(options_data.chain_ts), 'option observations')
-print(len(options_data.get_timeindex()), 'EOD chains')
-```
-
-Monthly Parquet files are only the resumable physical layout: the loader returns one continuous
-`OptionsDataDFs`. Date bounds avoid scanning the full cache when an analysis needs a shorter window:
-
-```python
-nvda_july = load_thetadata_eod_cache(
-    cache_root,
-    start_date='2026-07-01',
-    end_date='2026-07-31',
-)
-```
-
-#### 3. Reconstruct a chain and extract volatility
-
-Every provider report retains its actual timestamp. Select one of those timestamps and reconstruct
-the chain exactly—there is no implicit borrowing from a later observation:
-
-```python
-import pandas as pd
-
-from option_chain_analytics import create_chain_at_time
-
+# Every provider report retains its actual timestamp; reconstruct the chain exactly at one of them
 value_time = nvda_july.get_timeindex()[-1]
 chain = create_chain_at_time(nvda_july, value_time)
-
-# Select the first listed expiry at least seven calendar days away.
-slice_id = chain.get_next_slice_after_date(value_time + pd.Timedelta(days=7))
-atm_vol = chain.get_atm_vol(slice_id=slice_id)
-skew_25d = chain.get_skew(slice_id=slice_id, delta=0.25)
-
-print({'value_time': value_time, 'expiry': slice_id, 'atm_vol': atm_vol, 'skew_25d': skew_25d})
-```
-
-Volatility values are decimals: `0.25` means 25%. ATM volatility averages the available call and
-put mark IVs at the nearest forward strike. OCA's delta skew is
-`(call IV - put IV) / log(call strike / put strike)` at the requested absolute delta.
-
-#### 4. Extract and plot rolling ATM volatility and skew
-
-The following installed-package example reconstructs every exact EOD chain and rolls to the first
-expiry at least seven calendar days away. Because it uses only the public OCA API, it works after a
-normal `pip install`; the repository `examples/` directory is not required:
-
-```python
-import matplotlib.pyplot as plt
-import pandas as pd
-
-from option_chain_analytics import create_chain_timeseries
-
-# Reconstruct exactly the reports present in the bounded cache. Using the
-# observed timestamps avoids introducing a synthetic schedule or look-ahead.
-observation_times = nvda_july.get_timeindex()
-chains = create_chain_timeseries(
-    options_data=nvda_july,
-    dates_schedule=observation_times,
-    time_selection='exact',
-)
-
-records = []
-for value_time, chain in chains.items():
-    roll_boundary = value_time + pd.Timedelta(days=7)
-    eligible = [
-        (expiry_slice.expiry_time, slice_id)
-        for slice_id, expiry_slice in chain.expiry_slices.items()
-        if expiry_slice.expiry_time >= roll_boundary
-    ]
-    if not eligible:
-        continue
-
-    expiry_time, slice_id = min(eligible)
-    atm_vol = chain.get_atm_vol(slice_id=slice_id)
-    skew_25d = chain.get_skew(slice_id=slice_id, delta=0.25)
-    if atm_vol is None or not pd.notna(atm_vol):
-        continue
-    records.append(
-        {
-            'value_time': value_time,
-            'expiration': expiry_time,
-            'dte': (expiry_time - value_time).total_seconds() / 86_400.0,
-            'atm_vol': float(atm_vol),
-            'skew_25d': None if skew_25d is None or not pd.notna(skew_25d) else float(skew_25d),
-        }
-    )
-
-vol_data = pd.DataFrame(records).set_index('value_time').sort_index()
-if vol_data.empty:
-    raise RuntimeError('the selected cache window has no eligible rolling expiries')
-
-# Volatilities are stored as decimals, so multiply by 100 for percentage axes.
-atm_figure, atm_axis = plt.subplots(figsize=(11, 5), tight_layout=True)
-atm_axis.plot(vol_data.index, 100.0 * vol_data['atm_vol'], marker='o')
-atm_axis.set_ylabel('ATM implied volatility (%)')
-atm_axis.set_xlabel('ThetaData EOD observation time')
-atm_axis.set_title('NVDA rolling ATM implied volatility')
-atm_axis.grid(alpha=0.3)
-atm_figure.autofmt_xdate()
-atm_figure.savefig('nvda_atm_vol.png', dpi=160)
-
-skew_figure, skew_axis = plt.subplots(figsize=(11, 5), tight_layout=True)
-skew_axis.plot(vol_data.index, 100.0 * vol_data['skew_25d'], marker='o', color='tab:orange')
-skew_axis.axhline(0.0, color='black', linewidth=0.8)
-skew_axis.set_ylabel('25-delta skew (vol points / log-strike)')
-skew_axis.set_xlabel('ThetaData EOD observation time')
-skew_axis.set_title('NVDA rolling 25-delta implied-volatility skew')
-skew_axis.grid(alpha=0.3)
-skew_figure.autofmt_xdate()
-skew_figure.savefig('nvda_25d_skew.png', dpi=160)
-```
-
-`vol_data` is the empirical table used by the plot. It retains the selected expiration and actual
-calendar DTE beside each ATM-volatility and skew observation, so maturity rolling is inspectable.
-
-The figures below are generated internally from OCA's deterministic simulated data, using the same
-schema, chain reconstruction, and seven-calendar-day roll as the ThetaData example. They illustrate
-the expected outputs without redistributing licensed market observations:
-
-![Illustrative rolling ATM implied volatility](docs/_static/readme/rolling_atm_volatility.png)
-
-![Illustrative rolling 25-delta implied-volatility skew](docs/_static/readme/rolling_25d_skew.png)
-
-Regenerate both documentation assets offline with
-`python tools/generate_readme_figures.py`.
-
-The repository also provides cache-first command-line wrappers for separate ATM and skew figures:
-
-```bash
-python examples/fetch_thetadata_atm_timeseries.py \
-    --ticker NVDA --start-date 2026-07-01 --end-date 2026-07-31 \
-    --metric atm --output nvda_atm_vol.png
-python examples/fetch_thetadata_atm_timeseries.py \
-    --ticker NVDA --start-date 2026-07-01 --end-date 2026-07-31 \
-    --metric skew --delta 0.25 --output nvda_25d_skew.png
-```
-
-#### 5. Plot the complete option chain at one exact date
-
-Load only the required report date, reconstruct its actual provider timestamp, and create the
-strike-space and delta-space figures for every live expiry. The figures can be inspected in memory
-or persisted as one multi-page PDF:
-
-```python
-from matplotlib.backends.backend_pdf import PdfPages
-
-from option_chain_analytics import (
-    create_chain_at_time,
-    load_thetadata_eod_cache,
-    run_chain_report,
-)
-
-report_date = '2026-07-17'
-one_day = load_thetadata_eod_cache(
-    cache_root,
-    start_date=report_date,
-    end_date=report_date,
-)
-if len(one_day.get_timeindex()) == 0:
-    raise RuntimeError(f'no ThetaData report is cached for {report_date}')
-
-# The date identifies a cache partition; value_time is the actual provider
-# report timestamp retained by OCA.
-value_time = one_day.get_timeindex()[0]
-chain = create_chain_at_time(
-    options_data=one_day,
-    value_time=value_time,
-    time_selection='exact',
-)
-if chain is None:
-    raise RuntimeError(f'no exact option chain is available at {value_time}')
-
 print('value_time:', chain.value_time)
 print('expiries:', list(chain.expiry_slices))
 print('contracts:', len(chain.options_df))
-
-figures = run_chain_report(chain)
-with PdfPages('nvda_chain_20260717.pdf') as pdf:
-    for figure in figures.values():
-        pdf.savefig(figure)
 ```
 
-The equivalent repository command is:
+The builder requests one month at a time and checkpoints each completed partition, so an
+interrupted request can be rerun safely; monthly Parquet files are only the resumable physical
+layout and the loader returns one continuous `OptionsDataDFs`. Index options with
+product-specific or AM settlement conventions are deliberately outside this adapter. The adapter
+records the provider's actual EOD report time, joins only an underlying report available at or
+before that time, and preserves both calls and puts; direct snapshot and time-series loads
+retrieve ThetaData SOFR EOD by default to anchor the discount factor and then infer forwards from
+parity (`rate_symbol=None` for a parity-only fit), while the partitioned cache builder uses the
+parity-only policy. The equivalent repository commands:
 
 ```bash
-python examples/run_chain_report.py \
-    --ticker NVDA --date 2026-07-17 --output nvda_chain_report.pdf
+python examples/build_thetadata_eod_cache.py --ticker NVDA --start-date 2023-06-01
+python examples/run_chain_report.py --ticker NVDA --date 2026-07-17 --output nvda_chain_report.pdf
 ```
 
-#### Snapshot and direct-live alternatives
+### Runnable examples
 
-`fetch_thetadata_eod.py` is a small single-expiry example. Without `--live` it is synthetic,
-deterministic, credential-free, and does not contact ThetaData:
+The [examples guide](examples/README.md) lists every script, its required data, whether it makes a
+network request, and its output. Removed research prototypes are not retained as runnable
+examples.
 
-```bash
-python examples/fetch_thetadata_eod.py
-python examples/fetch_thetadata_eod.py --live --ticker AAPL \
-    --value-date 2026-07-24 --expiration 2026-08-21 --metric both
-```
+- [`first_success.py`](examples/first_success.py) — generated deterministic panel; reconstructed
+  chain, ATM volatility, and roll selection. No network.
+- [`quote_diagnostics.py`](examples/quote_diagnostics.py) — generated panel with explicit
+  injected defects; quote quality, parity, source-row exclusions and optional diagnostic figures.
+- [`retrospective_freshness.py`](examples/retrospective_freshness.py) and
+  [`parity_attribution.py`](examples/parity_attribution.py) — repository-only
+  calibration-frozen event-age/asynchrony policy, and exact-pair parity attribution and recovery
+  from original records, on generated data.
+- [`fetch_thetadata_eod.py`](examples/fetch_thetadata_eod.py) — a single-expiry example;
+  synthetic, deterministic and credential-free without `--live`, ATM volatility and/or 25-delta
+  skew for one expiry with it.
+- [`build_thetadata_eod_cache.py`](examples/build_thetadata_eod_cache.py),
+  [`fetch_thetadata_atm_timeseries.py`](examples/fetch_thetadata_atm_timeseries.py),
+  [`run_chain_report.py`](examples/run_chain_report.py) — resumable monthly EOD partitions,
+  cache-first rolling ATM-volatility or skew plots, and the multi-expiry PDF chain report.
 
-For a short range that should not be cached, pass `--live` to
-`fetch_thetadata_atm_timeseries.py`, or call `fetch_and_plot_thetadata_atm_vols` and
-`fetch_and_plot_thetadata_skew` from that module. Cache-first access is recommended for repeated
-research because it avoids downloading the same reports again.
-
-The adapter records the provider's actual EOD report time, joins only an underlying report
-available at or before that time, and preserves both calls and puts. Direct snapshot/time-series
-loads retrieve ThetaData SOFR EOD by default to anchor the discount factor and then robustly infer
-forwards from parity; pass `rate_symbol=None` for a parity-only fit. The partitioned cache builder
-uses the parity-only policy. Every bid, mark, and ask IV and every mark Greek is computed by
-`vanilla-option-pricers`, rather than mixing provider and OCA analytics.
-
-## Documentation and development
-
-Start with the [documentation site](https://optionchainanalytics.readthedocs.io/en/latest/), then read the
-[schema contract](https://optionchainanalytics.readthedocs.io/en/latest/schema.html),
-[point-in-time reconstruction](https://optionchainanalytics.readthedocs.io/en/latest/point_in_time.html),
-and [data-source guide](https://optionchainanalytics.readthedocs.io/en/latest/data_sources.html).
+## Testing
 
 ```bash
 uv sync --locked --group test
 uv run --no-sync pytest -q
 uv run --locked --only-group lint ruff check .
+```
+
+Automated checks use `tests/test_*.py` and need no provider credentials; the credential-free
+simulated-data path exercises the same containers and queries as the optional empirical
+adapters. The documentation and distribution checks from a source checkout are:
+
+```bash
 uv sync --locked --extra docs
 uv run --no-sync python -m sphinx -E -W --keep-going -b html docs docs/_build/html
 uv build --sdist --clear --out-dir dist
@@ -460,48 +286,25 @@ uv build --wheel dist/*.tar.gz --out-dir dist
 uv run --no-project python tools/verify_distribution.py dist
 ```
 
-The installable package lives under `src/option_chain_analytics/`; repository-only scripts live in
-`examples/`. Automated checks use `tests/test_*.py`. Component development diagnostics live beside
-their implementation in `src/option_chain_analytics/**/run_local/*_run.py`, expose `Locals` and
-`run_local(local=...)`, and are excluded from distributions. The `run_local` folders use Python's
-implicit namespace-package support and therefore contain no `__init__.py` files. Raw datasets,
-normalised caches, agent reports, and generated outputs live in ignored `data/`, `resources/`,
-`agents/`, and `outputs/` directories.
+## Changelog
 
-## Research and licensing boundary
+Release history is maintained in [CHANGELOG.md](CHANGELOG.md).
 
-OCA can provide a public, auditable input layer for empirical studies and replication. Strategy
-logic and the QF-paper backtests remain in SigmaStrats, and a public example is not expected to
-reproduce results computed from a private production dataset exactly.
+## Feedback & contributing <a name="feedback-contributing"></a>
 
-Dataset licences and access terms are separate from the software licence.
-
-## Ecosystem
-
-OCA depends on [`qis`](https://github.com/ArturSepp/QuantInvestStrats) for general time-series and
-visualisation utilities and on
-[`vanilla-option-pricers`](https://github.com/ArturSepp/VanillaOptionPricers) for vanilla prices,
-Greeks, and implied-volatility inversion. [`bbg-fetch`](https://github.com/ArturSepp/BloombergFetch)
-is an optional provider integration. OCA remains upstream of
-[`stochvolmodels`](https://github.com/ArturSepp/StochVolModels), which consumes it only through the
-optional research workflow. The [ArturSepp profile](https://github.com/ArturSepp) is the
-canonical ten-package catalogue.
-
-## Feedback & contributing
-
-- [Report a reproducible bug](https://github.com/ArturSepp/OptionChainAnalytics/issues/new?template=bug_report.yml), including the package version, Python/platform, provider or simulated-data path, timestamps, and expected versus actual result.
-- [Request a feature](https://github.com/ArturSepp/OptionChainAnalytics/issues/new?template=feature_request.yml), explaining which field, provider, or normalisation workflow is missing, the current workaround, and the smallest useful API.
-- Read [CONTRIBUTING.md](CONTRIBUTING.md) for the data-licensing boundary, development commands, point-in-time rules, and pull-request guidance.
+- **Bug:** [report a reproducible bug](https://github.com/ArturSepp/OptionChainAnalytics/issues/new?template=bug_report.yml), including the package version, Python/platform, provider or simulated-data path, timestamps, and expected versus actual result.
+- **Feature:** [request a feature](https://github.com/ArturSepp/OptionChainAnalytics/issues/new?template=feature_request.yml), explaining which field, provider, or normalisation workflow is missing, the current workaround, and the smallest useful API.
+- **Question or methodology:** search or open an [issue](https://github.com/ArturSepp/OptionChainAnalytics/issues) and name the adapter, schema column, or point-in-time rule involved.
+- **Contribution:** read [CONTRIBUTING.md](CONTRIBUTING.md) for the data-licensing boundary, development commands, point-in-time rules, and pull-request guidance.
 
 ## Citation
 
-Machine-readable citation metadata is provided in
-[`CITATION.cff`](CITATION.cff).
+Machine-readable citation metadata is provided in [`CITATION.cff`](CITATION.cff).
 
 A copyable software citation is:
 
 ```bibtex
-@misc{sepp2026optionchainanalytics,
+@software{sepp2026optionchainanalytics,
   title={option-chain-analytics: Point-in-time option-chain containers, feed normalisation, reconstruction, and queries for quantitative research},
   author={Sepp, Artur},
   year={2026},
@@ -510,7 +313,37 @@ A copyable software citation is:
 }
 ```
 
+## Ecosystem
+
+This package is part of an open-source Python stack for quantitative finance. The
+[ArturSepp profile](https://github.com/ArturSepp) is the canonical catalogue:
+
+| Package | Purpose |
+|---|---|
+| [`qis`](https://github.com/ArturSepp/QuantInvestStrats) | Performance analytics, backtesting, and factsheet reporting |
+| [`optimalportfolios`](https://github.com/ArturSepp/OptimalPortfolios) | Portfolio construction and rolling backtesting |
+| [`factorlasso`](https://github.com/ArturSepp/factorlasso) | Sparse factor-model estimation |
+| [`bbg-fetch`](https://github.com/ArturSepp/BloombergFetch) | Bloomberg data in pandas DataFrames |
+| [`option-chain-analytics`](https://github.com/ArturSepp/OptionChainAnalytics) *(this package)* | Point-in-time option-chain data and queries |
+| [`vanilla-option-pricers`](https://github.com/ArturSepp/VanillaOptionPricers) | Numba-vectorised BSM and Bachelier pricing |
+| [`stochvolmodels`](https://github.com/ArturSepp/StochVolModels) | Stochastic-volatility pricing and calibration |
+| [`trendfollowing`](https://github.com/ArturSepp/TrendFollowingSystems) | Closed-form trend-following analytics |
+| [`privateassets`](https://github.com/ArturSepp/privateassets) | Multi-factor PME for private assets |
+| [`goal-based-allocation`](https://github.com/ArturSepp/GoalBasedAllocation) | Goal-based allocation under regime-switching jump-diffusions |
+
+OCA depends on `qis` for general time-series and visualisation utilities and on
+`vanilla-option-pricers` for vanilla prices, Greeks, and implied-volatility inversion. `bbg-fetch`
+is an optional provider integration. OCA remains upstream of `stochvolmodels`, which consumes it
+only through the optional research workflow.
+
 ## License
 
 The software is released under the [MIT License](LICENSE). The software licence does not grant
 rights to any empirical dataset loaded through an optional provider integration.
+
+## Disclaimer
+
+`option-chain-analytics` is distributed FREE & WITHOUT ANY WARRANTY under the MIT License. See
+[LICENSE](LICENSE) in the release for details. Use the routes in
+[Feedback & contributing](#feedback-contributing) for bugs, feature requests and
+methodology questions.
