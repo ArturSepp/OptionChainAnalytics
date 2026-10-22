@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "option-chain-analytics"
-version = "5.3.0"
+version = "6.0.0"
 description = "Point-in-time option-chain containers, feed normalisation, reconstruction, and queries for quantitative research"
 readme = "README.md"
 license = "MIT"
@@ -46,6 +46,7 @@ dependencies = [
     "numba>=0.63.0",
     "numpy>=2.0",
     "pandas>=2.2.0",
+    "pillow>=13.0.0",
     "qis>=5.11.0",
     "scipy>=1.12.0",
     "seaborn>=0.13.0",
@@ -57,6 +58,7 @@ cboe = [
     "pyarrow>=14.0.0",
 ]
 deribit = [
+    "certifi>=2026.10.19",
     "requests>=2.31.0",
     "tqdm>=4.66.0",
 ]
@@ -65,16 +67,19 @@ bloomberg = [
     "bbg-fetch>=2.3.0",
 ]
 thetadata = [
+    "certifi>=2026.10.19",
     "python-dotenv>=1.0; python_version >= '3.12'",
     "thetadata>=1.0.9; python_version >= '3.12'",
 ]
 docs = [
+    "certifi>=2026.10.19",
     "furo>=2024.8.6",
     "myst-parser>=4.0",
     "sphinx>=8.0",
 ]
 all = [
     "bbg-fetch>=2.3.0",
+    "certifi>=2026.10.19",
     "furo>=2024.8.6",
     "myst-parser>=4.0",
     "pyarrow>=14.0.0",

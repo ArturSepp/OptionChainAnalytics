@@ -1269,7 +1269,7 @@ wheels = [
 
 [[package]]
 name = "option-chain-analytics"
-version = "5.3.0"
+version = "6.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "matplotlib" },
@@ -1277,6 +1277,7 @@ dependencies = [
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "pandas" },
+    { name = "pillow" },
     { name = "qis" },
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
@@ -1287,6 +1288,7 @@ dependencies = [
 [package.optional-dependencies]
 all = [
     { name = "bbg-fetch" },
+    { name = "certifi" },
     { name = "furo" },
     { name = "myst-parser" },
     { name = "pyarrow" },
@@ -1304,16 +1306,19 @@ cboe = [
     { name = "pyarrow" },
 ]
 deribit = [
+    { name = "certifi" },
     { name = "requests" },
     { name = "tqdm" },
 ]
 docs = [
+    { name = "certifi" },
     { name = "furo" },
     { name = "myst-parser" },
     { name = "sphinx", version = "9.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "sphinx", version = "9.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
 ]
 thetadata = [
+    { name = "certifi" },
     { name = "python-dotenv", marker = "python_full_version >= '3.12'" },
     { name = "thetadata", marker = "python_full_version >= '3.12'" },
 ]
@@ -1333,6 +1338,10 @@ test = [
 requires-dist = [
     { name = "bbg-fetch", marker = "extra == 'all'", specifier = ">=2.3.0" },
     { name = "bbg-fetch", marker = "extra == 'bloomberg'", specifier = ">=2.3.0" },
+    { name = "certifi", marker = "extra == 'all'", specifier = ">=2026.10.19" },
+    { name = "certifi", marker = "extra == 'deribit'", specifier = ">=2026.10.19" },
+    { name = "certifi", marker = "extra == 'docs'", specifier = ">=2026.10.19" },
+    { name = "certifi", marker = "extra == 'thetadata'", specifier = ">=2026.10.19" },
     { name = "furo", marker = "extra == 'all'", specifier = ">=2024.8.6" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2024.8.6" },
     { name = "matplotlib", specifier = ">=3.8.0" },
@@ -1341,6 +1350,7 @@ requires-dist = [
     { name = "numba", specifier = ">=0.63.0" },
     { name = "numpy", specifier = ">=2.0" },
     { name = "pandas", specifier = ">=2.2.0" },
+    { name = "pillow", specifier = ">=13.0.0" },
     { name = "pyarrow", marker = "extra == 'all'", specifier = ">=14.0.0" },
     { name = "pyarrow", marker = "extra == 'cboe'", specifier = ">=14.0.0" },
     { name = "python-dotenv", marker = "python_full_version >= '3.12' and extra == 'all'", specifier = ">=1.0" },

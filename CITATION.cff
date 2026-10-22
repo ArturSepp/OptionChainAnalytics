@@ -2,8 +2,8 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it using the metadata from this file."
 type: software
 title: "option-chain-analytics: Point-in-time option-chain containers, feed normalisation, reconstruction, and queries for quantitative research"
-version: 5.3.0
-date-released: "2026-10-14"
+version: 6.0.0
+date-released: "2026-10-22"
 authors:
   - family-names: Sepp
     given-names: Artur

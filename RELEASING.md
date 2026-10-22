@@ -13,7 +13,7 @@ only redirects existing links and is not rebuilt for each package release.
 
 ## Candidate verification
 
-Run the test suite in clean Python 3.10 through 3.14 environments. From one clean supported
+Run the test suite in clean Python 3.11 through 3.14 environments. From one clean supported
 environment, also run the documentation and distribution gates:
 
 ```bash
