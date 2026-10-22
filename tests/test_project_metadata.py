@@ -29,7 +29,10 @@ def test_release_candidate_metadata_is_aligned() -> None:
     assert re.fullmatch(r'\d+\.\d+\.\d+', project['version'])
     assert project['requires-python'] == '>=3.11'
     assert project['license'] == 'MIT'
+    assert 'pillow>=13.0.0' in project['dependencies']
     optional_dependencies = project['optional-dependencies']
+    for extra in ('deribit', 'thetadata', 'docs', 'all'):
+        assert 'certifi>=2026.10.19' in optional_dependencies[extra]
     assert 'fitters' not in optional_dependencies
     assert not any(
         'cvxpy' in requirement.lower()
