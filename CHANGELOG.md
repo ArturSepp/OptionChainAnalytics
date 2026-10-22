@@ -6,7 +6,16 @@ All notable public changes to OptionChainAnalytics are recorded here.
 
 ### Changed
 
+- Raise the development Python requirement to 3.11 so all supported environments can
+  use Pillow 13's security fixes; move the CI matrix and dependency-floor checks to
+  Python 3.11–3.14. The published 5.3.0 release is unchanged.
 - Document the verified released synthetic first-use workflow and bounded contributor starter tasks; preserve each documentation channel's canonical URL.
+
+### Fixed
+
+- Update locked Pillow to 13.0.0 and Certifi to 2026.10.19 to resolve the reported
+  image-decoder and certificate-bundle vulnerabilities. Retain those transitive
+  security floors in uv's resolver constraints and lockfile regression checks.
 
 ### Added
 

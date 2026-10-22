@@ -7,6 +7,7 @@ import subprocess
 import sys
 
 import pytest
+from packaging.version import Version
 
 try:
     import tomllib
@@ -26,7 +27,7 @@ def test_release_candidate_metadata_is_aligned() -> None:
     changelog = (REPOSITORY_ROOT / 'CHANGELOG.md').read_text(encoding='utf-8')
 
     assert re.fullmatch(r'\d+\.\d+\.\d+', project['version'])
-    assert project['requires-python'] == '>=3.10'
+    assert project['requires-python'] == '>=3.11'
     assert project['license'] == 'MIT'
     optional_dependencies = project['optional-dependencies']
     assert 'fitters' not in optional_dependencies
@@ -38,6 +39,16 @@ def test_release_candidate_metadata_is_aligned() -> None:
     assert project['urls']['Documentation'] == DOCUMENTATION_URL
     assert f"version: {project['version']}" in citation
     assert f"## [{project['version']}]" in changelog
+
+
+@pytest.mark.parametrize(('name', 'minimum'), [('pillow', '13.0.0'), ('certifi', '2026.10.19')])
+def test_lockfile_excludes_vulnerable_security_dependencies(name: str, minimum: str) -> None:
+    """Every Python-specific resolution must retain the patched security floor."""
+    with (REPOSITORY_ROOT / 'uv.lock').open('rb') as stream:
+        lock = tomllib.load(stream)
+    versions = [package['version'] for package in lock['package'] if package['name'] == name]
+    assert versions, f'{name} disappeared from the audited lockfile'
+    assert all(Version(version) >= Version(minimum) for version in versions), versions
 
 
 def test_documentation_discovery_routes_public_pages_to_read_the_docs(tmp_path, monkeypatch) -> None:
