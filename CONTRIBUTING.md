@@ -65,7 +65,7 @@ establish independent reader success. Review time and acceptance are not promise
 
 ## Development setup
 
-OCA requires Python 3.10 or newer. The full test matrix covers Python 3.10 through 3.14.
+OCA development requires Python 3.11 or newer. The full test matrix covers Python 3.11 through 3.14.
 
 ```bash
 python -m venv .venv

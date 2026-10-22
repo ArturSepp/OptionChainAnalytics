@@ -60,7 +60,8 @@ analytics and reporting are [`qis`](https://github.com/ArturSepp/QuantInvestStra
 
 ## Installation
 
-OptionChainAnalytics requires Python 3.10 or newer. CI covers Python 3.10 through 3.14.
+Development checkouts require Python 3.11 or newer. CI covers Python 3.11 through 3.14.
+The published 5.3.0 release retains Python 3.10 support; the higher floor applies to the next release.
 
 Install the published package:
 

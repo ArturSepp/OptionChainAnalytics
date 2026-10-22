@@ -113,7 +113,7 @@ uv run --no-project python tools/verify_distribution.py dist
 ```
 
 Install `.[cboe]` for Feather/Parquet CBOE data, or the relevant provider extra (`deribit`,
-`bloomberg`, `thetadata`). Supported Python is >= 3.10; CI runs Python 3.10–3.14 under Linux
+`bloomberg`, `thetadata`). Supported Python is >= 3.11; CI runs Python 3.11–3.14 under Linux
 and Python 3.12 under Windows and macOS. CI also lints, builds the documentation, and verifies
 both wheel and source distribution from clean, outside-checkout environments.
 
