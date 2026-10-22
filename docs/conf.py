@@ -1,7 +1,6 @@
 """Sphinx configuration for OptionChainAnalytics documentation."""
 
 import os
-import re
 import sys
 from pathlib import Path
 
@@ -28,22 +27,12 @@ exclude_patterns = ['_build']
 # _templates/base.html titles pages other than the homepage "<page title> - option-chain-analytics".
 templates_path = ['_templates']
 html_theme = 'furo'
-html_title = 'option-chain-analytics - point-in-time option-chain data and queries'
+html_title = f'option-chain-analytics {release} - point-in-time option-chain data and queries'
 
 
-def _consolidate_stable(url: str) -> str:
-    """Return the canonical base URL with the moving ``stable`` alias replaced by ``latest``.
-
-    Read the Docs builds ``stable`` from the newest release tag and ``latest`` from ``main``, so both
-    serve the same pages. Left alone, each copy names itself canonical and search engines see every
-    page twice. Numbered versions keep their own canonical URL.
-    """
-    return re.sub(r'(\.readthedocs\.io/en/)stable(/|$)', r'\1latest\2', url)
-
-
-html_baseurl = _consolidate_stable(
-    os.environ.get("READTHEDOCS_CANONICAL_URL")
-    or "https://optionchainanalytics.readthedocs.io/en/latest/"
+# Each channel describes its own source revision and keeps its canonical URL.
+html_baseurl = (
+    os.environ.get('READTHEDOCS_CANONICAL_URL') or 'https://optionchainanalytics.readthedocs.io/en/latest/'
 )
 myst_html_meta = {
     'google-site-verification': 'cddUZk3Gsd1MySw42Rwuq_rMzUDcMNkJWekObx-QS9Y',

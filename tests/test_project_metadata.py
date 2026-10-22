@@ -49,10 +49,10 @@ def test_documentation_discovery_routes_public_pages_to_read_the_docs(tmp_path, 
     assert conf['html_baseurl'] == PUBLIC_DOCS_ROOT
     with (REPOSITORY_ROOT / 'pyproject.toml').open('rb') as stream:
         assert conf['release'] == tomllib.load(stream)['project']['version']
-    # stable and latest serve the same pages, so both name latest as canonical; numbered versions keep theirs
+    # Each source channel retains its own canonical URL.
     stable = 'https://optionchainanalytics.readthedocs.io/en/stable/'
     monkeypatch.setenv('READTHEDOCS_CANONICAL_URL', stable)
-    assert runpy.run_path(str(REPOSITORY_ROOT / 'docs/conf.py'))['html_baseurl'] == PUBLIC_DOCS_ROOT
+    assert runpy.run_path(str(REPOSITORY_ROOT / 'docs/conf.py'))['html_baseurl'] == stable
     numbered = 'https://optionchainanalytics.readthedocs.io/en/5.2.1/'
     monkeypatch.setenv('READTHEDOCS_CANONICAL_URL', numbered)
     assert runpy.run_path(str(REPOSITORY_ROOT / 'docs/conf.py'))['html_baseurl'] == numbered
@@ -112,7 +112,7 @@ def test_documentation_pages_carry_short_titles_and_a_root_homepage_canonical(tm
         return (output / f'{name}.html').read_text(encoding='utf-8').split('</head>')[0]
 
     assert re.findall(r'<title>(.*?)</title>', head('index')) == [
-        'option-chain-analytics - point-in-time option-chain data and queries'
+        f"option-chain-analytics {conf['release']} - point-in-time option-chain data and queries"
     ]
     assert re.findall(r'<title>(.*?)</title>', head('queries')) == [
         'Point-in-time chain queries - option-chain-analytics'

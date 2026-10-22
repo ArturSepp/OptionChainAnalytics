@@ -4,6 +4,10 @@ All notable public changes to OptionChainAnalytics are recorded here.
 
 ## [Unreleased]
 
+### Changed
+
+- Document the verified released synthetic first-use workflow and bounded contributor starter tasks; preserve each documentation channel's canonical URL.
+
 ### Added
 
 - Added a repository-only parity attribution/recoverability example with immutable
