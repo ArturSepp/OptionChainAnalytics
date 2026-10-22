@@ -58,7 +58,7 @@ changed passage. On the maintainer's OneDrive checkout, dot-source the shared
 Keep exports, caches, builds and run output on C. The development setup below is for ordinary contributor
 checkouts outside OneDrive; never create `.venv` in the synchronized checkout.
 
-Follow the [shared review guidance](https://github.com/ArturSepp/ArturSepp/blob/main/docs/contributing_to_stack.md#review-attribution-and-automation-assisted-changes).
+Follow the verification guidance in the [shared documentation standard](https://github.com/ArturSepp/ArturSepp/blob/main/docs/documentation_standard.md).
 Record the revision, actual versions, exact checks and skips, rendered review and material
 automation assistance. Preserve MIT licensing and attribution. Automated checks do not
 establish independent reader success. Review time and acceptance are not promised.
