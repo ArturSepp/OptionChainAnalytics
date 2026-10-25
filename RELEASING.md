@@ -1,5 +1,10 @@
 # Releasing OptionChainAnalytics
 
+*Author: [Artur Sepp](https://github.com/ArturSepp) / First recorded: [2026-08-16](https://github.com/ArturSepp/OptionChainAnalytics/commit/312512765e5dcdd44fdd90103a26eac6837640ff)*
+
+Implemented in [option-chain-analytics](https://github.com/ArturSepp/OptionChainAnalytics).
+Software citation: [CITATION.cff](https://github.com/ArturSepp/OptionChainAnalytics/blob/main/CITATION.cff).
+
 Publication is a maintainer-only action. Preparing or merging this repository does not authorize a
 tag, GitHub Release, documentation deployment, or package upload.
 

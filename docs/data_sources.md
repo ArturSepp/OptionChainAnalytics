@@ -9,6 +9,11 @@ myst:
 
 # Data sources and access boundaries
 
+*Author: [Artur Sepp](https://github.com/ArturSepp) / First recorded: [2026-08-16](https://github.com/ArturSepp/OptionChainAnalytics/commit/312512765e5dcdd44fdd90103a26eac6837640ff)*
+
+Implemented in [option-chain-analytics](https://github.com/ArturSepp/OptionChainAnalytics).
+Software citation: [CITATION.cff](https://github.com/ArturSepp/OptionChainAnalytics/blob/main/CITATION.cff).
+
 OCA normalises feeds but does not grant data rights. Empirical datasets remain outside the
 repository until their redistribution terms are reviewed.
 

@@ -1,5 +1,10 @@
 # option-chain-analytics
 
+*Author: [Artur Sepp](https://github.com/ArturSepp) / First recorded: [2023-02-03](https://github.com/ArturSepp/OptionChainAnalytics/commit/72d2e05805d09deca91bfbfe94425f2e46130c79)*
+
+Implemented in [option-chain-analytics](https://github.com/ArturSepp/OptionChainAnalytics).
+Software citation: [CITATION.cff](https://github.com/ArturSepp/OptionChainAnalytics/blob/main/CITATION.cff).
+
 **Point-in-time option-chain containers, feed normalisation, reconstruction, and queries for quantitative research**
 
 OCA is the data-container layer: provider credentials and data rights, stochastic-volatility

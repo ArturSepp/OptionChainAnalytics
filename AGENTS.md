@@ -27,6 +27,14 @@ Guidance for AI coding agents working in the **OptionChainAnalytics** repository
   update common rules in the shared guide instead of maintaining another copy.
 - Linking the standard does not mark legacy pages migrated or reviewed. Preserve explicit
   pending work and record checks actually performed.
+- Every human-authored reader page, including the README, contribution and example guides,
+  release instructions and community policies, uses the linked Artur Sepp author/date header
+  followed by the repository and software-citation block shown in `docs/schema.md`. Link to
+  `https://github.com/ArturSepp/OptionChainAnalytics` and its `blob/main/CITATION.cff` file using
+  ordinary Markdown links. Preserve upstream policy and third-party attribution.
+- Each First recorded date uses that page's earliest verified committer date and links its full
+  commit SHA, following renames and earlier source formats. Confirm that the commit contains
+  the source. A new uncommitted page keeps the author-only byline until commit evidence exists.
 
 ## Project overview
 

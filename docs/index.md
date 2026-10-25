@@ -11,13 +11,13 @@ myst:
 
 *Author: [Artur Sepp](https://github.com/ArturSepp) / First recorded: [2026-08-16](https://github.com/ArturSepp/OptionChainAnalytics/commit/312512765e5dcdd44fdd90103a26eac6837640ff)*
 
+Implemented in [option-chain-analytics](https://github.com/ArturSepp/OptionChainAnalytics).
+Software citation: [CITATION.cff](https://github.com/ArturSepp/OptionChainAnalytics/blob/main/CITATION.cff).
+
 <a id="optionchainanalytics-documentation"></a>
 
 Point-in-time option-chain containers, feed normalisation, reconstruction, and queries for
 quantitative research.
-
-Implemented in [option-chain-analytics](https://github.com/ArturSepp/OptionChainAnalytics).
-Software citation: [CITATION.cff](https://github.com/ArturSepp/OptionChainAnalytics/blob/main/CITATION.cff).
 
 The fastest route is [first success](first_success.md). It is deterministic, offline, and requires
 no provider account. Before mapping empirical data, read the [schema contract](schema.md),

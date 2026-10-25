@@ -9,6 +9,11 @@ myst:
 
 # Point-in-time reconstruction
 
+*Author: [Artur Sepp](https://github.com/ArturSepp) / First recorded: [2026-08-16](https://github.com/ArturSepp/OptionChainAnalytics/commit/312512765e5dcdd44fdd90103a26eac6837640ff)*
+
+Implemented in [option-chain-analytics](https://github.com/ArturSepp/OptionChainAnalytics).
+Software citation: [CITATION.cff](https://github.com/ArturSepp/OptionChainAnalytics/blob/main/CITATION.cff).
+
 `create_chain_at_time` reconstructs the expiry slices available at one observation
 timestamp. Exact selection remains the default. Scheduled studies may explicitly request the
 latest observation at or before the schedule time with `time_selection="previous"`.

@@ -8,6 +8,11 @@ myst:
 
 # Choosing an option-data tool
 
+*Author: [Artur Sepp](https://github.com/ArturSepp) / First recorded: [2026-08-16](https://github.com/ArturSepp/OptionChainAnalytics/commit/312512765e5dcdd44fdd90103a26eac6837640ff)*
+
+Implemented in [option-chain-analytics](https://github.com/ArturSepp/OptionChainAnalytics).
+Software citation: [CITATION.cff](https://github.com/ArturSepp/OptionChainAnalytics/blob/main/CITATION.cff).
+
 This comparison was checked on 2026-08-16 against each project's primary documentation. The tools
 solve overlapping but different problems; none is a universal replacement for the others.
 

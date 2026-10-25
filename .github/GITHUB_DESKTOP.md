@@ -1,8 +1,8 @@
 # Committing with GitHub Desktop
 
-*Author: [Artur Sepp](https://github.com/ArturSepp)*
+*Author: [Artur Sepp](https://github.com/ArturSepp) / First recorded: [2026-09-21](https://github.com/ArturSepp/OptionChainAnalytics/commit/d3256331a7c92c6e9d618aa0f8d13f5c1403de27)*
 
-Project: [option_chain_analytics](https://github.com/ArturSepp/OptionChainAnalytics).
+Implemented in [option-chain-analytics](https://github.com/ArturSepp/OptionChainAnalytics).
 Software citation: [CITATION.cff](https://github.com/ArturSepp/OptionChainAnalytics/blob/main/CITATION.cff).
 
 Create a working branch, select the intended changes, and commit normally. The installed

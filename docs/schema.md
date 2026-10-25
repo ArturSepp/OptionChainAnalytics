@@ -9,6 +9,11 @@ myst:
 
 # `OptionsDataDFs` schema
 
+*Author: [Artur Sepp](https://github.com/ArturSepp) / First recorded: [2026-08-16](https://github.com/ArturSepp/OptionChainAnalytics/commit/312512765e5dcdd44fdd90103a26eac6837640ff)*
+
+Implemented in [option-chain-analytics](https://github.com/ArturSepp/OptionChainAnalytics).
+Software citation: [CITATION.cff](https://github.com/ArturSepp/OptionChainAnalytics/blob/main/CITATION.cff).
+
 `OptionsDataDFs(chain_ts, spot_data, ticker)` holds a long option-observation panel and an aligned
 underlying frame. `chain_ts` contains one row per contract and observation time. `spot_data` uses a
 timezone-aware `DatetimeIndex` and must contain `close`; crypto workflows may add `mark_price` and

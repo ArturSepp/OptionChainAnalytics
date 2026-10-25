@@ -11,7 +11,7 @@ myst:
 
 *Author: [Artur Sepp](https://github.com/ArturSepp) / First recorded: [2026-08-16](https://github.com/ArturSepp/OptionChainAnalytics/commit/312512765e5dcdd44fdd90103a26eac6837640ff)*
 
-Source: [OptionChainAnalytics](https://github.com/ArturSepp/OptionChainAnalytics).
+Implemented in [option-chain-analytics](https://github.com/ArturSepp/OptionChainAnalytics).
 Software citation: [CITATION.cff](https://github.com/ArturSepp/OptionChainAnalytics/blob/main/CITATION.cff).
 
 This example is the release-gating public workflow. It creates two observation times, three

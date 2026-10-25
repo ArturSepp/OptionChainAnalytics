@@ -1,5 +1,10 @@
 # Supported examples
 
+*Author: [Artur Sepp](https://github.com/ArturSepp) / First recorded: [2026-08-20](https://github.com/ArturSepp/OptionChainAnalytics/commit/71ef868d7111a99aa91147ef9cdd114d50d8605f)*
+
+Implemented in [option-chain-analytics](https://github.com/ArturSepp/OptionChainAnalytics).
+Software citation: [CITATION.cff](https://github.com/ArturSepp/OptionChainAnalytics/blob/main/CITATION.cff).
+
 Every example is runnable with deterministic data, a standardized local cache, or explicit
 provider access. Vendor data and credentials are never included in the repository.
 
