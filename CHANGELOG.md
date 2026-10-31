@@ -17,7 +17,9 @@ All notable public changes to OptionChainAnalytics are recorded here.
 - Refresh locked dependencies and CI tooling, and align OSS checks with Ruff 0.17.2.
   Declared dependency requirements, public analytics APIs, data conventions and
   numerical results are unchanged from 6.0.0.
-- Pin the released first-success instructions to 6.0.1 and its matching tagged script,
+- Pin the public SVM consumer check to released 2.6.1, whose locked environment meets
+  OCA's existing Pillow security floor.
+- Pin the released first-success instructions to 6.0.1 and its matching immutable script,
   while retaining the previously verified 5.3.0 support floor.
 
 ## [6.0.0] - 2026-10-22

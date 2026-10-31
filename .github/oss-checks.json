@@ -107,7 +107,7 @@
       "module": "stochvolmodels",
       "extra": "research",
       "sdk": false,
-      "commit": "2d90efba42ed9c8db71c59844208ca7898554686"
+      "commit": "52a44d758449185a3d6c34c291015d5141136532"
     }
   ]
 }
