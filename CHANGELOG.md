@@ -4,6 +4,22 @@ All notable public changes to OptionChainAnalytics are recorded here.
 
 ## [Unreleased]
 
+## [6.0.1] - 2026-10-31
+
+### Fixed
+
+- Generate canonical documentation sitemaps for the root, stable and numbered
+  channels, and preserve unchanged pages' canonical URLs during incremental builds.
+
+### Changed
+
+- Add verified author, source-date and software-citation links to reader documentation.
+- Refresh locked dependencies and CI tooling, and align OSS checks with Ruff 0.17.2.
+  Declared dependency requirements, public analytics APIs, data conventions and
+  numerical results are unchanged from 6.0.0.
+- Pin the released first-success instructions to 6.0.1 and its matching tagged script,
+  while retaining the previously verified 5.3.0 support floor.
+
 ## [6.0.0] - 2026-10-22
 
 ### Changed

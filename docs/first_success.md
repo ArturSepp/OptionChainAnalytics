@@ -22,14 +22,14 @@ or local-data dependency.
 ## Reproducible released workflow
 
 The tested support floor for this first-use workflow is **option-chain-analytics 5.3.0** on
-Python 3.12. This is a verified floor, not the historical introduction version. Install core
-without extras; save and run the existing package-owned script in a working directory outside
-synchronized folders:
+Python 3.12. This is a verified floor, not the historical introduction version. The commands
+below pin release **6.0.1** and its matching tagged script. Install core without extras; save
+and run the existing package-owned script in a working directory outside synchronized folders:
 
 ```powershell
-python -m pip install "option-chain-analytics==5.3.0"
+python -m pip install "option-chain-analytics==6.0.1"
 python -c "from importlib.metadata import version; import option_chain_analytics as p; print(version('option-chain-analytics')); print(p.__file__)"
-Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/ArturSepp/OptionChainAnalytics/1443fe313336967b6aac78bf0bc9771aae3fd565/examples/first_success.py' -OutFile first_success.py
+Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/ArturSepp/OptionChainAnalytics/v6.0.1/examples/first_success.py' -OutFile first_success.py
 python first_success.py
 ```
 

@@ -65,7 +65,7 @@ analytics and reporting are [`qis`](https://github.com/ArturSepp/QuantInvestStra
 
 ## Installation
 
-OptionChainAnalytics 6.0.0 requires Python 3.11 or newer. CI covers Python 3.11 through 3.14.
+OptionChainAnalytics 6.0 and later requires Python 3.11 or newer. CI covers Python 3.11 through 3.14.
 Python 3.10 users must remain on the 5.3.x release line.
 
 Install the published package:
@@ -314,7 +314,7 @@ A copyable software citation is:
   title={option-chain-analytics: Point-in-time option-chain containers, feed normalisation, reconstruction, and queries for quantitative research},
   author={Sepp, Artur},
   year={2026},
-  version={6.0.0},
+  version={6.0.1},
   url={https://github.com/ArturSepp/OptionChainAnalytics}
 }
 ```
