@@ -314,7 +314,7 @@ A copyable software citation is:
   title={option-chain-analytics: Point-in-time option-chain containers, feed normalisation, reconstruction, and queries for quantitative research},
   author={Sepp, Artur},
   year={2026},
-  version={6.0.1},
+  version={6.0.2},
   url={https://github.com/ArturSepp/OptionChainAnalytics}
 }
 ```

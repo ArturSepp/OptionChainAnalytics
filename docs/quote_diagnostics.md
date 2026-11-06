@@ -72,7 +72,7 @@ pre-reconstruction counts unavailable. The report includes:
 - `targets`: explicitly missing requested maturity IDs.
 
 Statuses are `pass`, `fail`, `not_checked` and `not_applicable`. Missing IV does not erase valid
-price evidence. In current source checkouts, `valid_price` requires finite, strictly positive
+price evidence. Since OCA 6.0.2, `valid_price` requires finite, strictly positive
 bid and ask prices with bid no greater than ask. This corrects the released 6.0.1 behavior
 that could count zero bids as valid two-sided quotes. Raw zero values remain in the evidence
 and `zero_bid` count, but are unavailable for two-sided, locked-market and paired-strike

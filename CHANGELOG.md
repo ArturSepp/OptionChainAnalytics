@@ -4,6 +4,8 @@ All notable public changes to OptionChainAnalytics are recorded here.
 
 ## [Unreleased]
 
+## [6.0.2] - 2026-11-06
+
 ### Fixed
 
 - `diagnose_quotes` requires finite, strictly positive bid and ask prices for valid
