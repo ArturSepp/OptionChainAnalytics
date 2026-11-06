@@ -59,9 +59,78 @@ def test_zero_bids_negative_rates_locked_and_missing_iv_are_separate():
     frame.loc[frame.index[0], ["bid_iv", "ask_iv"]] = np.nan
     report = diagnose_quotes(frame, config=config, requested_time=time, source_time=time)
     first = report.table("quotes").iloc[0]
-    assert first.valid_price and first.zero_bid and first.locked and not first.valid_iv
+    assert not first.valid_price and first.zero_bid and not first.locked and not first.valid_iv
+    assert not first.one_sided  # neither side is quoted
     assert report.table("checks").query('check == "discount"').status.eq("pass").all()
     assert report.table("checks").query('source_row_id == "row:0" and check == "iv"').status.iloc[0] == "not_checked"
+
+
+def test_missing_iv_keeps_positive_two_sided_price_evidence():
+    """IV availability is independent of finite positive quote availability."""
+    _, frame, time, config = fixture()
+    frame.loc[frame.index[0], ["bid_iv", "ask_iv"]] = np.nan
+    original = frame.copy(deep=True)
+    result = diagnose_quotes(frame, config=config, requested_time=time, source_time=time)
+    first = result.table("quotes").iloc[0]
+    assert first.valid_price and not first.valid_iv and not first.one_sided
+    assert result.table("summary").n_two_sided.iloc[0] == len(frame)
+    assert result.table("checks").query('source_row_id == "row:0" and check == "iv"').status.iloc[0] == "not_checked"
+    pd.testing.assert_frame_equal(frame, original)
+
+
+@pytest.mark.parametrize("multiplier", [1., 100.])
+@pytest.mark.parametrize(
+    "bid,ask,valid,one_sided,zero_bid,locked",
+    [
+        (0., 2., False, True, True, False),
+        (1., 0., False, True, False, False),
+        (0., 0., False, False, True, False),
+        (np.nan, 2., False, True, False, False),
+        (1., np.nan, False, True, False, False),
+        (np.inf, 2., False, True, False, False),
+        (1., np.inf, False, True, False, False),
+        (-1., 2., False, True, False, False),
+        (1., -2., False, True, False, False),
+        (2., 1., False, False, False, False),
+        (1., 1., True, False, False, True),
+        (1., 2., True, False, False, False),
+        (1e-15, 2e-15, True, False, False, False),
+    ],
+)
+def test_two_sided_price_requires_positive_quotes_without_mutation(
+        multiplier, bid, ask, valid, one_sided, zero_bid, locked):
+    """Synthetic absent sides never become two-sided quotes after unit conversion."""
+    _, frame, time, config = fixture()
+    frame = frame.iloc[[0]].copy()
+    frame.loc[:, ["bid_price", "ask_price"]] = [bid / multiplier, ask / multiplier]
+    frame.usd_multiplier = multiplier
+    config = replace(config, payoff="inverse", price_conversion="usd_per_unit")
+    original = frame.copy(deep=True)
+    result = diagnose_quotes(frame, config=config, requested_time=time, source_time=time)
+    quote = result.table("quotes").iloc[0]
+    assert bool(quote.valid_price) is valid
+    assert bool(quote.one_sided) is one_sided
+    assert bool(quote.zero_bid) is zero_bid
+    assert bool(quote.locked) is locked
+    summary = result.table("summary").iloc[0]
+    assert summary.n_two_sided == int(valid)
+    assert summary.n_one_sided == int(one_sided)
+    assert summary.n_zero_bid == int(zero_bid)
+    assert summary.n_locked == int(locked)
+    assert result.table("expiries").n_two_sided.sum() == int(valid)
+    available = bool(np.isfinite(bid) and bid > 0 and np.isfinite(ask) and ask > 0)
+    checks = result.table("checks").set_index("check")
+    assert checks.loc["two_sided_price", "status"] == ("pass" if available else "fail")
+    if not available:
+        assert checks.loc["uncrossed_price", "status"] == "not_checked"
+    if np.isfinite(bid) and np.isfinite(ask) and (bid <= 0 or ask <= 0):
+        assert checks.loc["two_sided_price", "reason"] == "nonpositive_price"
+    if valid:
+        assert quote.spread == pytest.approx(ask - bid)
+        assert quote.relative_spread == pytest.approx(2 * (ask - bid) / (ask + bid))
+    else:
+        assert pd.isna(quote.spread) and pd.isna(quote.relative_spread)
+    pd.testing.assert_frame_equal(frame, original)
 
 
 def test_timing_duplicates_thresholds_and_targets_remain_explicit():

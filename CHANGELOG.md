@@ -4,6 +4,14 @@ All notable public changes to OptionChainAnalytics are recorded here.
 
 ## [Unreleased]
 
+### Fixed
+
+- `diagnose_quotes` requires finite, strictly positive bid and ask prices for valid
+  two-sided quotes. Zero sides remain in the original evidence, but no longer inflate
+  two-sided, locked-market or paired-strike coverage, spread statistics, or parity refits.
+  One-sided counts reflect exactly one available positive side; positive locked quotes
+  remain valid, and missing IV remains separate from price availability.
+
 ## [6.0.1] - 2026-10-31
 
 ### Fixed

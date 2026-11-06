@@ -49,6 +49,35 @@ def test_independent_parity_intervals_and_free_discount_recovery(multiplier):
     assert summary.n_eligible == 5
 
 
+@pytest.mark.parametrize("multiplier", [1, 100])
+@pytest.mark.parametrize("optiontype", ["C", "P"])
+@pytest.mark.parametrize("side", ["bid_price", "ask_price"])
+def test_zero_quote_side_excluded_from_parity_coverage_and_refit(multiplier, optiontype, side):
+    """Synthetic zero quote sentinels cannot supply a parity interval or fitted strike."""
+    frame, time, config = fixture(multiplier=multiplier)
+    missing = frame.strike.eq(95.) & frame.optiontype.eq(optiontype)
+    frame.loc[missing, side] = 0.
+    original = frame.copy(deep=True)
+    quality = diagnose_quotes(frame, config=config, requested_time=time, source_time=time)
+    assert quality.table("summary").n_two_sided.iloc[0] == len(frame) - 1
+    assert quality.table("summary").n_paired_strikes.iloc[0] == 4
+    result = diagnose_parity(quality, spread_floor=.005, refit=True)
+    rejected = result.table("pairs").loc[lambda pairs: pairs.strike.eq(95.)].iloc[0]
+    assert rejected.status == "not_checked"
+    assert rejected.reason == "invalid_quote_leg"
+    assert not rejected.refit_eligible
+    assert pd.isna(rejected.lower) and pd.isna(rejected.upper)
+    summary = result.table("expiries").iloc[0]
+    assert summary.n_eligible == 4 and summary.n_declared_checked == 4
+    assert 95. not in summary.used_strikes
+    assert summary.rejected_strikes == [95.]
+    assert summary.fitted_forward == pytest.approx(102.)
+    assert summary.fitted_discount == pytest.approx(1.02)
+    eligibility = result.table("eligibility")
+    assert eligibility.loc[eligibility.reason.eq("invalid_quote_leg"), "eligible"].eq(False).all()
+    pd.testing.assert_frame_equal(frame, original)
+
+
 def test_outlier_and_fixed_discount_are_reported_separately():
     frame, time, config = fixture()
     frame.loc[frame.index[-1], ["bid_price", "ask_price"]] += 2

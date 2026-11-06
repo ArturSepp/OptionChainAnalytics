@@ -152,6 +152,8 @@ def diagnose_quotes(
     QuoteDiagnosticReport
         Quotes, per-row checks, expiry/side coverage, totals and target coverage.
         ``pass`` denotes a completed local check, never an arbitrage certificate.
+        Valid two-sided prices require finite, strictly positive bid and ask with
+        bid <= ask. Zero sides remain in the evidence but are unavailable quotes.
     """
     requested = _utc(requested_time, "requested_time")
     is_chain = isinstance(observations, SlicesChain)
@@ -224,13 +226,16 @@ def diagnose_quotes(
         )
         bid, ask = row["bid_price"], row["ask_price"]
         finite = np.isfinite(bid) and np.isfinite(ask)
-        check("two_sided_price", finite, "missing_or_nonfinite_price")
+        bid_available = bool(np.isfinite(bid) and bid > 0)
+        ask_available = bool(np.isfinite(ask) and ask > 0)
+        two_sided = bid_available and ask_available
+        check("two_sided_price", two_sided, "nonpositive_price" if finite else "missing_or_nonfinite_price")
         check("nonnegative_price", bid >= 0 and ask >= 0 if finite else None, "negative_or_missing_price")
-        check("uncrossed_price", bid <= ask if finite else None, "crossed_or_missing_price")
-        row["valid_price"] = bool(finite and bid >= 0 and ask >= bid)
+        check("uncrossed_price", bid <= ask if two_sided else None, "crossed_or_missing_price")
+        row["valid_price"] = bool(two_sided and ask >= bid)
         row["locked"] = bool(row["valid_price"] and ask == bid)
         row["zero_bid"] = bool(np.isfinite(bid) and bid == 0)
-        row["one_sided"] = bool(np.isfinite(bid) != np.isfinite(ask))
+        row["one_sided"] = bid_available != ask_available
         row["spread"] = ask - bid if row["valid_price"] else np.nan
         mid = (bid + ask) / 2
         row["relative_spread"] = row["spread"] / mid if mid > 0 else np.nan
