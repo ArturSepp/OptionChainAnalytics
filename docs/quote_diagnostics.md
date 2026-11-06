@@ -72,7 +72,13 @@ pre-reconstruction counts unavailable. The report includes:
 - `targets`: explicitly missing requested maturity IDs.
 
 Statuses are `pass`, `fail`, `not_checked` and `not_applicable`. Missing IV does not erase valid
-price evidence. Zero bids and locked markets have their own counts. Bounds test whether the
+price evidence. In current source checkouts, `valid_price` requires finite, strictly positive
+bid and ask prices with bid no greater than ask. This corrects the released 6.0.1 behavior
+that could count zero bids as valid two-sided quotes. Raw zero values remain in the evidence
+and `zero_bid` count, but are unavailable for two-sided, locked-market and paired-strike
+coverage, spread statistics and parity refits. `one_sided` means exactly one finite positive
+side; two zero or missing sides are neither one-sided nor locked. Positive locked quotes
+remain valid. Bounds test whether the
 quote interval overlaps the admissible standard-payoff range; they are not a demand that every
 bid equal an attainable model value. For forward $F$, strike $K$ and positive discount $D$,
 the admissible call and put ranges are
@@ -87,7 +93,8 @@ $\min(\mathrm{ask}-L,\;U-\mathrm{bid})$; it passes when at least
 Numerical lower bounds use the zero-volatility intrinsic payoff from
 [VanillaOptionPricers](https://github.com/ArturSepp/VanillaOptionPricers) at unit discount,
 then multiply by $D$ exactly once. This also applies when $D>1$. A locked quote at the
-discounted intrinsic bound passes; a locked quote below it by more than the tolerance fails.
+positive discounted intrinsic bound passes; a positive locked quote below it by more than
+the tolerance fails. Unavailable or invalid two-sided prices leave bounds unchecked.
 The spread floor used
 for residual scaling does not relax these bounds or make an inadmissible price valid.
 
