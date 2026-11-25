@@ -146,7 +146,7 @@ SVM adapter's selection map connects those IDs to the new `OptionChain`; default
 ordinals after filtering are not substitutes for source identities.
 
 SVM's repository-only
-[combined research report](https://github.com/ArturSepp/StochVolModels/blob/main/examples/calibration/combined_research_diagnostics.py)
+[combined research report](https://github.com/ArturSepp/StochVolModels/blob/daa8ba8195f97581418d8414b65ed4731a57ce4e/examples/fitters/combined_research_diagnostics.py)
 accepts serialized OCA reports without importing OCA. It checks selected prices, IVs,
 strikes, option types, maturities, forwards, discounts, units and timestamps before joining.
 It reports quote quality, parity, observed fit, strike support and wing sensitivity as
