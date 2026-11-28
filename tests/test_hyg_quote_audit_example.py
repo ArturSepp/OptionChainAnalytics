@@ -1,7 +1,14 @@
 """Offline provider-boundary tests for the dated HYG acquisition example."""
+import runpy
+from pathlib import Path
+
 import pandas as pd
 import pytest
-from examples.fetch_hyg_quote_audit import acquire, validate_report
+
+EXAMPLE_PATH = Path(__file__).resolve().parents[1] / 'examples' / 'fetch_hyg_quote_audit.py'
+example = runpy.run_path(str(EXAMPLE_PATH))
+acquire = example['acquire']
+validate_report = example['validate_report']
 
 
 def report():
@@ -23,8 +30,7 @@ def test_report_date_root_and_duplicates_are_validated():
 
 
 def test_wide_raw_quotes_survive_acquisition_and_completed_files_resume(tmp_path,monkeypatch):
-    import examples.fetch_hyg_quote_audit as module
-    monkeypatch.setattr(module.time,'sleep',lambda _:None)
+    monkeypatch.setattr(example['time'], 'sleep', lambda _: None)
     class Client:
         calls=0
         def option_history_eod(self,**kwargs):

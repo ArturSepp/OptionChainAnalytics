@@ -430,7 +430,7 @@ and decimal `mark_iv`. Bloomberg's `PX_MID` is in volatility percentage
 points for the smile tickers. The example divides these values by 100 and
 converts forward points using `FWD_SCALE`. The observation time is the UTC
 retrieval time. Use the retained expiry and strike to match a fitted IV back
-to its tenor and pillar. [SVM mid-IV calibration example](https://stochvolmodels.readthedocs.io/en/latest/calibration.html#five-tenor-fx-mid-iv-fit)
+to its tenor and pillar. [StochVolModels calibration guide](https://stochvolmodels.readthedocs.io/en/latest/calibration.html)
 
 ## Local layout
 

@@ -1,8 +1,16 @@
 """Synthetic point-in-time and restart tests for private quote acquisition."""
+import runpy
+from pathlib import Path
+
 import pandas as pd
 import pytest
 
-from examples.fetch_hyg_intraday_quotes import acquire, read_schedule, validate_snapshot
+
+EXAMPLE_PATH = Path(__file__).resolve().parents[1] / 'examples' / 'fetch_hyg_intraday_quotes.py'
+example = runpy.run_path(str(EXAMPLE_PATH))
+acquire = example['acquire']
+read_schedule = example['read_schedule']
+validate_snapshot = example['validate_snapshot']
 
 
 def snapshot(stamp='2023-07-31T19:54:59Z'):
