@@ -600,4 +600,4 @@ def run_local(local=Locals.BUILD):
 
 
 if __name__ == '__main__':
-    run_local()
+    run_local(local=Locals.BUILD)

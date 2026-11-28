@@ -107,4 +107,4 @@ def run_local(local=Locals.FETCH):
 
 
 if __name__=='__main__':
-    run_local()
+    run_local(local=Locals.FETCH)
