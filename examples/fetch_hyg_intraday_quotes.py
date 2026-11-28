@@ -88,7 +88,7 @@ def acquire(selection, output, asset='options', client=None, pause=2.1):
               'max_dte': 460, 'timezone': 'America/New_York',
               'price_unit': 'USD per underlying share', 'stock_venue': 'utp_cta',
               'selection_sha256': digest(selection), 'source_sha256': digest(__file__),
-              'sdk_version': version('thetadata'),
+              'sdk_version': version('thetadata') if client is None else None,
               'max_dte_policy': 'request hint only; retain raw and enforce locally downstream',
               'quality_filter': 'none; identity and as-of timestamp validation only'}
     design = output / 'design.json'

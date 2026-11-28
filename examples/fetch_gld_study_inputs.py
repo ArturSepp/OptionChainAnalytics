@@ -60,7 +60,7 @@ def acquire(selection, output, client=None):
         raise ValueError('Expected a unique, nonempty frozen date calendar')
     config = {'ticker': 'GLD', 'dates': dates.dt.strftime('%Y-%m-%d').sort_values().tolist(),
         'max_dte': 460, 'source_sha256': digest(__file__), 'selection_sha256': digest(selection),
-        'sdk': version('thetadata'), 'price_unit': 'USD/share',
+        'sdk': version('thetadata') if client is None else None, 'price_unit': 'USD/share',
         'clock': 'EOD reports by 18:00 ET; created is not last quote-update time'}
     output.mkdir(parents=True, exist_ok=True)
     design = output/'design.json'

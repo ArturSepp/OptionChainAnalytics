@@ -1,5 +1,6 @@
 """Synthetic point-in-time and restart tests for private quote acquisition."""
 import runpy
+from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 
 import pandas as pd
@@ -69,7 +70,12 @@ def test_frozen_schedule_rejects_duplicate_or_subminute_requests(tmp_path):
         read_schedule(path)
 
 
-def test_zero_bid_preserved_resume_hash_checked_and_failure_not_completed(tmp_path):
+def test_zero_bid_preserved_resume_hash_checked_and_failure_not_completed(tmp_path, monkeypatch):
+    def unavailable_sdk(name):
+        raise PackageNotFoundError(name)
+
+    monkeypatch.setitem(acquire.__globals__, 'version', unavailable_sdk)
+
     class Client:
         calls = 0
 
