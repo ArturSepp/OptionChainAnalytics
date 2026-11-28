@@ -388,7 +388,9 @@ def load_thetadata_eod_cache(
     """Load a date-filtered ThetaData cache as one research-ready OCA container.
 
     Only monthly Parquet partitions overlapping the inclusive report-date
-    bounds are read.
+    bounds are read. A manifest with spot_policy="unavailable" explicitly
+    permits a quote-only cache, with an empty spot panel and missing spot
+    prices in its option rows.
     """
     report_start = _as_date(start_date, 'start_date') if start_date is not None else None
     report_end = _as_date(end_date, 'end_date') if end_date is not None else None
@@ -438,7 +440,10 @@ def load_thetadata_eod_cache(
         .drop_duplicates(SliceColumn.EXCHANGE_TIME.value, keep='last')
         .set_index(SliceColumn.EXCHANGE_TIME.value)
     )
-    if chain_ts.empty or spot_data.empty:
+    spot_unavailable = manifest.get('spot_policy') == 'unavailable'
+    if spot_unavailable and (not spot_data.empty or chain_ts[SliceColumn.SPOT_PRICE.value].notna().any()):
+        raise ValueError(f'ThetaData cache at {cache_root} contains spot data despite its spot policy')
+    if chain_ts.empty or (spot_data.empty and not spot_unavailable):
         raise ValueError(f'no ThetaData EOD observations at {cache_root} match the requested dates')
     return OptionsDataDFs(
         chain_ts=chain_ts.reset_index(drop=True),

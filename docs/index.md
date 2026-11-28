@@ -23,10 +23,18 @@ The fastest route is [first success](first_success.md). It is deterministic, off
 no provider account. Before mapping empirical data, read the [schema contract](schema.md),
 [point-in-time rules](point_in_time.md), and [data-source boundaries](data_sources.md).
 
+For an FX smile quoted in ATM volatility, risk reversals and market strangles,
+the [FX broker smile example](data_sources.md#fx-broker-smiles) reconstructs five
+strike and mid-IV pairs per expiry and checks the original broker quotes.
+
 The repository's [supported
 examples](https://github.com/ArturSepp/OptionChainAnalytics/blob/main/examples/README.md)
 state the data prerequisite, network behavior, and output of every runnable script. Cache-first
 SPY workflows make no request after the local ThetaData cache has been built.
+
+The 6.1.0 development checkout also covers [synchronized ETF quotes](data_sources.md#synchronized-thetadata-etf-snapshots)
+and [the 2016 XLF contract adjustment](data_sources.md#adjusted-xlf-contracts).
+For released 6.0.2 usage, see the [tagged source guides](https://github.com/ArturSepp/OptionChainAnalytics/tree/v6.0.2/docs).
 
 For observed-data diagnostics, start with [quote quality and exact-time parity](quote_diagnostics.md).
 Its [workflow table](quote_diagnostics.md#choose-a-diagnostic-workflow) distinguishes packaged

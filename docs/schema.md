@@ -47,10 +47,22 @@ The native `SliceColumn` fields are:
 | `expiry` | Timezone-aware contractual expiry timestamp. |
 | `ttm` | Non-negative time to maturity in years. State the day-count convention; the simulator uses elapsed seconds / 365 days. |
 | `contract_size` | Units of underlying represented by one contract. |
-| `discount` | Discount factor from `exchange_time` to `expiry`, not a rate. |
+| `discount` | Discount factor to expiry for expiry-settled options. FX broker smiles use the domestic discount factor to delivery. |
 
 Adapters should populate all columns and use `NaN` for unavailable numeric observations. Zero has
 economic meaning and must not be used as a generic missing-data marker.
+
+### FX smile marks
+
+The FX adapter appends source fields after the standard columns. Select
+`quote_origin == "derived_fx_smile_mid"` to identify reconstructed marks.
+`strike` is the strike of the individual pillar at its own IV. The additional
+`market_strangle_strike` on a wing is the strike fixed at the broker's common
+strangle IV. Use the latter to check the strangle premium. The five values of
+`fx_pillar` in increasing strike order are `10P`, `25P`, `ATM`, `25C` and
+`10C`. Use `fx_quote_delta` for the signed FX quoting convention and `delta`
+for the discounted Black forward sensitivity. The Bloomberg example adds the
+source tenor in `fx_tenor`. [FX inputs and worked example](data_sources.md#fx-broker-smiles)
 
 ## Minimal validation
 
@@ -59,7 +71,7 @@ from option_chain_analytics import SliceColumn, generate_simulated_options_data
 
 options_data = generate_simulated_options_data()
 required = [column.value for column in SliceColumn]
-assert list(options_data.chain_ts.columns) == required
+assert list(options_data.chain_ts.columns[:len(required)]) == required
 assert options_data.chain_ts['exchange_time'].dt.tz is not None
 assert options_data.chain_ts['expiry'].dt.tz is not None
 assert (options_data.chain_ts['expiry'] > options_data.chain_ts['exchange_time']).all()

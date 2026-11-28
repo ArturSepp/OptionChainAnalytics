@@ -49,6 +49,13 @@ timestamps return `None`; a `previous` request before the first observation also
 `create_chain_timeseries` uses `previous` by default because its input is a sampling schedule;
 pass `time_selection="exact"` when exact feed-time matching is required.
 
+The slice forward is weighted by open interest. When open interest is zero or
+missing across the selected maturity, it uses the unweighted mean of available
+forward observations. In the 6.1.0 development checkout, slice spot uses
+the median of available `spot_price` observations for that maturity and falls
+back to the slice forward when those observations are missing. For empirical
+spot returns, use the independently observed `OptionsDataDFs.spot_data` series.
+
 ## No-look-ahead contract
 
 - Select `value_time` from the observation index, or use the explicit `previous` policy for a

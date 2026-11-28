@@ -8,6 +8,7 @@ from option_chain_analytics.conventions import (
     mat_to_timestamp,
 )
 from option_chain_analytics.data.loaders import DataSource, ts_data_loader_wrapper
+from option_chain_analytics.data.fx_smile import FXSmileQuote, fx_smile_to_options_data
 from option_chain_analytics.data.simulated import generate_simulated_options_data
 from option_chain_analytics.data.thetadata import (
     load_thetadata_eod_options_data,
@@ -44,6 +45,7 @@ from option_chain_analytics.visuals.diagnostics import plot_quote_diagnostics
 __all__ = [
     'DataSource',
     'ExpirySlice',
+    'FXSmileQuote',
     'FuturesChainTs',
     'NearestStrikeOnGrid',
     'OptionsDataDFs',
@@ -63,6 +65,7 @@ __all__ = [
     'reconstruct_with_diagnostics',
     'plot_quote_diagnostics',
     'generate_simulated_options_data',
+    'fx_smile_to_options_data',
     'get_contract_execution_price',
     'load_thetadata_eod_options_data',
     'load_thetadata_eod_cache',
