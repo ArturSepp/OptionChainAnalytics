@@ -38,7 +38,7 @@ those feeds into one long-form `OptionsDataDFs` panel, then reconstructs an audi
 - **One schema for every feed.** `SliceColumn` defines the common option-feed schema — source
   time, contract, forward, discount factor, strike, expiry, quote, implied volatility, Greeks,
   volume, and open interest — and every adapter (simulated, CBOE, Deribit/Tardis, ThetaData,
-  Bloomberg) lands on it; see the [schema contract](docs/schema.md).
+  and the FX broker smile adapter) lands on it; see the [schema contract](docs/schema.md).
 - **Point-in-time by contract.** Observation and expiry timestamps are timezone-aware; exact
   lookup is the reconstruction default, and scheduled studies can explicitly select the latest
   previous observation but never a later one; see [point-in-time reconstruction](docs/point_in_time.md).
@@ -146,7 +146,8 @@ Data model:
 
 | Area | What the package computes |
 |---|---|
-| Normalisation | Provider feeds (deterministic simulator, local CBOE fitted-chain files, Deribit/Tardis crypto histories, ThetaData national EOD reports, Bloomberg through `bbg-fetch`) → one long-form `OptionsDataDFs` panel on the `SliceColumn` schema; the CBOE mapper infers bid/ask implied volatilities from source bid/ask prices with the contemporaneous forward, discount factor and time to maturity |
+| Normalisation | Provider feeds (deterministic simulator, local CBOE fitted-chain files, Deribit/Tardis crypto histories, ThetaData national EOD reports) → one long-form `OptionsDataDFs` panel on the `SliceColumn` schema; the CBOE mapper infers bid/ask implied volatilities from source bid/ask prices with the contemporaneous forward, discount factor and time to maturity |
+| FX broker smiles | Reconstruct five mid-IV pillars from at-the-money volatility, risk reversals and market strangles with `FXSmileQuote` and `fx_smile_to_options_data` in the 6.1.0 development checkout. See [FX broker smiles](docs/data_sources.md#fx-broker-smiles). |
 | Reconstruction | `create_chain_at_time` → `SlicesChain` at an exact observation time, or the latest explicitly requested prior observation, never a later one; every provider report retains its actual timestamp |
 | Queries | `ExpirySlice` call/put, ATM strike and volatility, delta-strike, volatility, open-interest and execution-price queries; weekly roll maturity selection; see [queries](docs/queries.md) |
 | Diagnostics | Quote-quality, parity and source-row diagnostics on synthetic or empirical data, exact-pair parity attribution and recovery from original records; see [quote diagnostics](docs/quote_diagnostics.md) |
@@ -252,6 +253,10 @@ python examples/run_chain_report.py --ticker NVDA --date 2026-07-17 --output nvd
 
 ### Runnable examples
 
+The 6.1.0 checkout adds [synchronized ThetaData ETF snapshots](examples/README.md#synchronized-etf-snapshots-with-thetadata)
+and [HYG and GLD acquisition scripts](examples/README.md#hyg-and-gld-quote-studies) for private
+research data. The FX smile guide includes a synthetic example that runs without Bloomberg.
+
 The [examples guide](examples/README.md) lists every script, its required data, whether it makes a
 network request, and its output. Removed research prototypes are not retained as runnable
 examples.
@@ -314,7 +319,7 @@ A copyable software citation is:
   title={option-chain-analytics: Point-in-time option-chain containers, feed normalisation, reconstruction, and queries for quantitative research},
   author={Sepp, Artur},
   year={2026},
-  version={6.0.2},
+  version={6.1.0},
   url={https://github.com/ArturSepp/OptionChainAnalytics}
 }
 ```

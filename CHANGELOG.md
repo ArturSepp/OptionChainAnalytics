@@ -4,6 +4,25 @@ All notable public changes to OptionChainAnalytics are recorded here.
 
 ## [Unreleased]
 
+## [6.1.0] - 2026-11-25
+
+### Added
+
+- `FXSmileQuote` and `fx_smile_to_options_data` reconstruct five mid-IV pillars
+  from ATM, 10- and 25-delta risk reversals and broker market strangles. Each
+  row preserves the quote convention, source and original broker inputs.
+- The Bloomberg example retrieves and replays private EUR/USD broker mids.
+- Added repository examples for synchronized ThetaData ETF stock and option quotes
+  and raw HYG and GLD acquisition with local provenance records.
+- Added the `xlf_contract_at_session` and `xlf1_intrinsic_value` helpers for the
+  2016 XLF contract adjustment.
+
+### Changed
+
+- Reconstructed expiry slices preserve observed spot alongside the forward.
+- `load_thetadata_eod_cache` accepts quote-only caches that explicitly declare spot
+  unavailable in their manifest.
+
 ## [6.0.2] - 2026-11-06
 
 ### Fixed

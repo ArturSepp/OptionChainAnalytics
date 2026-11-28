@@ -56,12 +56,14 @@ The following catalogue is the supported path from stored data to `OptionsDataDF
 | Tardis BTC/ETH hourly | provider files under `$OCA_DATA_PATH/tardis/` | `DataSource.TARDIS_LOCAL` | `OptionsDataDFs(**payload)` |
 | Deribit BTC/ETH snapshots | provider files under `$OCA_DATA_PATH/deribit/` | `DataSource.DERIBIT_LOCAL` | `OptionsDataDFs(**payload)` |
 | ThetaData equity/ETF EOD | `$OCA_CACHE_PATH/thetadata_options/<ticker>/` | `load_thetadata_eod_cache` | loader returns `OptionsDataDFs` |
+| ThetaData ETF EOD backtests (up to 400 DTE) | `$OCA_CACHE_PATH/thetadata_options_backtest/` when configured to the shared cache root | `load_thetadata_eod_cache` | loader returns `OptionsDataDFs` |
 | Deterministic fixture | no storage; generated in memory | `generate_simulated_options_data` | loader returns `OptionsDataDFs` |
 
 Bloomberg BVOL surfaces, derived ATM/skew CSVs, and any retained Yahoo files are not
 `OptionsDataDFs` sources. They must not be passed through a legacy or inferred adapter. The
-workstation-local ignored `data/README.md` records physical junction targets, observed coverage,
-file sizes, and datasets retained only as source material.
+workstation-local ignored `data/README.md` records physical paths, observed coverage, file sizes,
+and gaps. The extended ThetaData archives use the same monthly option and spot layout under
+`<ticker>_400d/`. A directory with the `_pilot` suffix contains a limited-period sample.
 
 To inspect the resolved root in any environment:
 
@@ -84,6 +86,8 @@ running Python version. The official ThetaData client requires Python 3.12 or ne
 | Tardis hourly chains | BTC/ETH: 2019-03-30–2024-05-06 UTC on the maintainer's local archive | Hourly source through `DataSource.TARDIS_LOCAL`; exact 08:00 UTC EOD caches through `DataSource.TARDIS_EOD_LOCAL` | No files distributed; provider terms apply. |
 | Deribit snapshots | BTC/ETH: 2023-10-27–2024-02-13 UTC on the maintainer's local archive | Supported by `DataSource.DERIBIT_LOCAL`; live retrieval is provider-specific | Historical archive not distributed. |
 | ThetaData national EOD | US equity/ETF option roots available to the authenticated account | `DataSource.THETADATA_EOD` maps contract quotes and aligned stock EOD reports to `OptionsDataDFs` inputs | Provider subscription and data terms apply; no responses are distributed. |
+| ThetaData synchronized ETF quotes | SPY, HYG, TLT and GLD | [Cutoff snapshot example](#synchronized-thetadata-etf-snapshots) writes research Parquet with quote and session evidence | Requires entitled ThetaData access. |
+| Bloomberg FX broker mids | EUR/USD at 1M, 2M, 3M, 6M and 1Y | [FX smile reconstruction](#fx-broker-smiles) produces five strike and mid-IV pairs per expiry | Run the synthetic example below or replay an entitled local snapshot. |
 | Bloomberg BVOL | SPX daily volatility surfaces: 2005-01-03–2024-06-17 locally | Input exists; option-price mapping and maturity rolling are TODO | Bloomberg access required; synthetic output must be labelled, not represented as observed prices. |
 
 Only workflows listed in the
@@ -261,6 +265,172 @@ timestamp and is joined to an option row only when it was available at or before
 a later close is never backward-filled. Normalized metadata records the source, price convention,
 expiry convention, and spot-alignment policy. Optional local Parquet caches contain normalized
 responses and are never distributed by OCA.
+
+## Synchronized ThetaData ETF snapshots
+
+The 6.1.0 development checkout provides `examples/build_thetadata_synchronized_etf.py`
+for SPY, HYG, TLT and GLD. It builds national best bid and offer (NBBO) snapshots for
+each completed trading session at 15:55 New York time, or five minutes before an early
+close. Naive provider timestamps are interpreted in New York time and stored in UTC.
+Stock and option quotes are in USD per share.
+
+Use `schedule.parquet` to identify the valuation cutoff and `sessions.parquet` to
+check which dates have a usable stock quote and eligible option rows. Use
+`quotes.parquet` to trace each option back to its source timestamp, age, exclusion
+flags and independent stock midpoint. The cutoff is the time used to value the
+snapshot. Component quotes can have different update times.
+
+- Stock quotes come from the consolidated stock feed at or before the cutoff in the
+  same session. When the timestamp represents the sample grid, the reported
+  sample lag is available and the actual quote age remains missing.
+- Option quote timestamps record actual updates. Future quotes, quotes from another
+  session, duplicate identities and invalid or crossed markets fail eligibility.
+  Zero option bids are retained and flagged. Eligibility alone does not establish
+  a valid two-sided quote under [OCA quote diagnostics](quote_diagnostics.md).
+  The default expiry limit is 460 calendar days. Set `--option-max-age` in seconds
+  to require a maximum option quote age.
+- Provider implied volatility (IV) and Greeks are optional diagnostics on a separate
+  sample grid. Their underlying reference is compared with an independent stock
+  sample at or before the reference time when available. Match status and timestamps
+  remain separate from cutoff quote eligibility.
+
+The output is a research quote panel with per-session and per-month audit records.
+Use `load_thetadata_eod_cache` for the separate normalized EOD cache format that
+returns `OptionsDataDFs`. The [examples guide](https://github.com/ArturSepp/OptionChainAnalytics/blob/main/examples/README.md)
+describes provider prerequisites, commands and resumable output layout.
+
+## Adjusted XLF contracts
+
+The 6.1.0 development checkout includes two helpers in
+`option_chain_analytics.data.occ_xlf` for the 19 September 2016 Financial Select
+Sector SPDR Fund distribution. Pass the original option ID and opening session to
+`xlf_contract_at_session(contract, opened_on, session)`. A position opened before
+the distribution moves from `XLF` to `XLF1` on the effective session, with its
+expiry, strike and right unchanged. The same rule maps `1XLF` and `2XLF` to their
+adjusted roots. A new standard-root position retains its original ID.
+
+`xlf1_intrinsic_value` returns USD per contract using the deliverable of 100 XLF
+shares, 13 XLRE shares and the verified cash in lieu for the fractional XLRE share.
+Pass contemporaneous unadjusted prices for both funds and the final official cash
+amount. The strike and quoted premium retain their 100 multiplier. See the
+[Options Clearing Corporation (OCC) adjustment memo #39575](https://www.miaxglobal.com/sites/default/files/alert-files/XLF_Distribution_39575.pdf).
+
+For example, using synthetic prices and a synthetic cash amount, a call struck
+at USD 22 has USD 115 of intrinsic value per contract:
+
+```python
+from option_chain_analytics.data.occ_xlf import xlf1_intrinsic_value
+
+assert xlf1_intrinsic_value(
+    strike=22.0, option_type="C", xlf_price=19.0, xlre_price=30.0, cash_in_lieu=25.0,
+) == 115.0
+```
+
+For a quote-only ThetaData EOD cache, the top-level manifest can declare
+`"spot_policy": "unavailable"`. The loader still requires matching option and
+spot partitions. The spot frame must be empty for the loaded date range and the
+option rows must have missing spot prices. This preserves the distinction
+between the cached quotes and a separately sourced deliverable valuation.
+
+## FX broker smiles
+
+In the OCA 6.1.0 development checkout, `fx_smile_to_options_data(quotes)` accepts one or more
+`FXSmileQuote` records for a single currency pair. Each record supplies dated
+spot and forward rates in quote currency per base unit, the domestic delivery
+discount factor, expiry time, ATM implied volatility, and the 10- and 25-delta
+risk reversals and market strangles. Use decimal volatility throughout.
+Observation and expiry must be timezone-aware. Time to expiry uses ACT/365F.
+
+At each delta, the risk reversal equals call IV minus put IV. The market
+strangle spread added to ATM gives one common IV. OCA finds the put and call
+strikes at that common IV and prices both legs. It then holds these strikes
+fixed and solves jointly for the two wing averages that reproduce both broker
+premiums. The resulting smile passes through each wing at its own quoted delta
+and through the supplied ATM. OCA interpolates IV linearly in log strike and
+holds the nearest wing IV flat outside the pillars. Other interpolants can
+produce different outright wing IVs from the same five broker quotes.
+
+Select `forward` or `spot` delta, or their premium-adjusted variants
+`forward_pa` and `spot_pa`. Spot delta uses the foreign factor implied by
+the domestic factor times forward divided by spot. The premium-adjusted call
+uses the higher-strike root. ATM may be spot, forward, or delta neutral. For
+delta-neutral ATM, the strike is $F\exp(\sigma^2T/2)$ under unadjusted delta
+and $F\exp(-\sigma^2T/2)$ under premium-adjusted delta.
+
+The five rows per expiry carry `fx_pillar`, signed `fx_quote_delta`,
+`market_strangle_strike` on each wing, the original inputs, and their source.
+The standard `delta` column is the derivative of discounted premium with
+respect to forward. `mark_price` is in quote currency per base unit.
+`quote_to_usd` enables USD-valued analytics on crosses with two non-USD
+currencies. Bid, ask, sizes and trading activity are missing. For a single
+expiry, `panel.chain_ts.set_index("fx_pillar")[["strike", "mark_iv"]]` returns
+the reconstructed grid in strike order.
+
+### Reconstruct and check one expiry
+
+This synthetic example uses a 13% ATM IV, a −3.1 percentage point 10-delta
+risk reversal and a 1.4 percentage point 10-delta market strangle. The latter
+prices both legs at 14.4% to establish the target premium.
+
+```python
+import numpy as np
+import pandas as pd
+from option_chain_analytics import FXSmileQuote, fx_smile_to_options_data
+
+quote = FXSmileQuote(
+    pair="EURUSD", value_time=pd.Timestamp("2025-01-02 15:00Z"),
+    expiry=pd.Timestamp("2025-07-02 14:00Z"), spot=1.10, forward=1.12,
+    discount=0.973, atm=0.13, rr10=-0.031, ms10=0.014, rr25=-0.016, ms25=0.005,
+    delta_convention="spot", atm_convention="delta_neutral", source="synthetic",
+)
+panel = fx_smile_to_options_data([quote])
+smile = panel.chain_ts.set_index("fx_pillar")
+for level, rr in [(10, quote.rr10), (25, quote.rr25)]:
+    assert np.isclose(smile.at[f"{level}C", "mark_iv"] - smile.at[f"{level}P", "mark_iv"], rr)
+assert smile[["bid_iv", "ask_iv", "bid_price", "ask_price"]].isna().all().all()
+```
+
+To check the market strangle independently, take the two saved
+`market_strangle_strike` values for each delta. Read the smile IV at each
+strike using the log-strike interpolant, then price the put and call. Find the
+single Black IV that reproduces their summed premium at those same strikes.
+Subtract the ATM IV to recover `ms10` or `ms25`. On the five-tenor EUR/USD
+snapshot retrieved on 25 November 2026 at 00:08:57 UTC, the maximum absolute
+errors were $1.31\times10^{-17}$ or less for the risk reversals and
+$1.68\times10^{-15}$ or less for the market strangles, in decimal IV.
+The offline round-trip tests in `tests/test_fx_smile.py` also check the quoted
+wing deltas across all four delta and three ATM conventions.
+
+### Bloomberg fetch and offline replay
+
+The [examples guide](https://github.com/ArturSepp/OptionChainAnalytics/blob/main/examples/README.md)
+lists `examples/fx_smile_bloomberg.py`, which requests
+EUR/USD 1M, 2M, 3M, 6M and 1Y mids together and saves the raw response under
+`$OCA_DATA_PATH/fx_smile/` (default `data/fx_smile/`). From the OCA checkout,
+fetch with the Bloomberg extra and a connected terminal, then replay offline.
+
+```bash
+python examples/fx_smile_bloomberg.py --fetch
+python examples/fx_smile_bloomberg.py --snapshot <saved-snapshot.csv>
+```
+
+The example interprets Bloomberg BFY mids as broker market strangles and uses
+unadjusted spot delta, delta-neutral ATM and a 10 a.m. New York cut for all five
+tenors. The one-year smile uses Bloomberg's `1Y` volatility tickers and its
+`EURUSD12M Curncy` forward. Forward points use the vendor scale and maturity.
+The derived CSV labels each pillar with `fx_tenor` and `fx_pillar`. Earlier
+two-tenor snapshots replay on their original grid. A flat SOFR ACT/360 rate approximates
+the USD spot-to-delivery discount. Supply the applicable quoting conventions
+and delivery discount curve for a desk valuation. The recorded source inputs
+are distinct from the five reconstructed marks.
+
+Replay writes `<snapshot-stem>_derived.csv` beside the source file. Each of
+the 25 rows carries the expiry forward, delivery discount, strike, option type
+and decimal `mark_iv`. Bloomberg's `PX_MID` is in volatility percentage
+points for the smile tickers. The example divides these values by 100 and
+converts forward points using `FWD_SCALE`. The observation time is the UTC
+retrieval time. Use the retained expiry and strike to match a fitted IV back
+to its tenor and pillar. [SVM mid-IV calibration example](https://stochvolmodels.readthedocs.io/en/latest/calibration.html#five-tenor-fx-mid-iv-fit)
 
 ## Local layout
 

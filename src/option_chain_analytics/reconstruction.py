@@ -73,12 +73,14 @@ def create_chain_at_time(
             continue
 
         expiry_id = str(maturity_id)
+        spots = maturity_df.get(SliceColumn.SPOT_PRICE)
+        spot = spots.median() if spots is not None and spots.notna().any() else forward
         expiry_data = pd.Series(
             {
                 UnderlyingColumn.EXPIRY_ID: expiry_id,
                 UnderlyingColumn.VALUE_TIME: selected_value_time,
                 UnderlyingColumn.EXPIRY: maturity_df[SliceColumn.EXPIRY].iloc[0],
-                UnderlyingColumn.SPOT_PRICE: forward,
+                UnderlyingColumn.SPOT_PRICE: spot,
                 UnderlyingColumn.UNDERLYING_INDEX: expiry_id,
                 UnderlyingColumn.FORWARD_PRICE: forward,
                 UnderlyingColumn.IR_RATE: 0.0,
